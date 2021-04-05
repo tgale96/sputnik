@@ -22,7 +22,7 @@ include(cmake/Dependencies.cmake)
 ##
 
 # Requires C++11.
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 if(BUILD_TEST)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSPUTNIK_BUILD_TEST")

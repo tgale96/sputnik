@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "sputnik/matrix_utils.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <numeric>
 
 #include "glog/logging.h"
-#include "sputnik/matrix_utils.h"
 
 namespace sputnik {
 
@@ -34,6 +36,18 @@ __global__ void ConvertKernel(const float *in_f, half2 *out, int n) {
   if (idx >= n) return;
   out[idx] = __float22half2_rn(in[idx]);
 }
+
+__global__ void ConvertKernel(const float *in, half *out, int n) {
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  if (idx >= n) return;
+  out[idx] = __float2half_rn(in[idx]);
+}
+
+__global__ void ConvertKernel(const int *in, short *out, int n) {
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  if (idx >= n) return;
+  out[idx] = static_cast<short>(in[idx]);
+}  
 
 __global__ void ConvertKernel(const int *in_i, short2 *out, int n) {
   const int2 *in = reinterpret_cast<const int2 *>(in_i);
@@ -54,6 +68,18 @@ __global__ void ConvertKernel(const half2 *in, float *out_f, int n) {
   if (idx >= n) return;
   out[idx] = __half22float2(in[idx]);
 }
+
+__global__ void ConvertKernel(const half *in, float *out, int n) {
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  if (idx >= n) return;
+  out[idx] = __half2float(in[idx]);
+}
+
+  __global__ void ConvertKernel(const short *in, int *out, int n) {
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  if (idx >= n) return;
+  out[idx] = static_cast<int>(in[idx]);
+}    
 
 __global__ void ConvertKernel(const short2 *in, int *out_i, int n) {
   int2 *out = reinterpret_cast<int2 *>(out_i);
@@ -147,6 +173,26 @@ cudaError_t Convert(const In *in, Out *out, int n) {
   ConvertKernel<<<blocks_per_grid, threads_per_block, 0, 0>>>(in, out, n);
   return cudaGetLastError();
 }
+
+template <>
+cudaError_t Convert(const int *in, short *out, int n) {
+  if (n == 0) return cudaSuccess;
+
+  int threads_per_block = 64;
+  int blocks_per_grid = (n + threads_per_block - 1) / threads_per_block;
+  ConvertKernel<<<blocks_per_grid, threads_per_block, 0, 0>>>(in, out, n);
+  return cudaGetLastError();
+}
+
+template <>
+cudaError_t Convert(const short *in, int *out, int n) {
+  if (n == 0) return cudaSuccess;
+
+  int threads_per_block = 64;
+  int blocks_per_grid = (n + threads_per_block - 1) / threads_per_block;
+  ConvertKernel<<<blocks_per_grid, threads_per_block, 0, 0>>>(in, out, n);
+  return cudaGetLastError();
+}  
 
 template<>
 cudaError_t Convert(const float *in, float *out, int n) {
@@ -546,35 +592,52 @@ void CudaSparseMatrix<Value>::InitFromSparseMatrix(
   CUDA_CALL(cudaFree(column_indices_int));
 }
 
-Matrix::Matrix(int rows, int columns, absl::BitGen *generator) {
-  rows_ = rows;
-  columns_ = columns;
+Matrix::Matrix(int rows, int columns)
+    : values_(std::make_unique<float[]>(rows * columns)),
+      rows_(rows),
+      columns_(columns) {}
 
-  // Allocate storage for the matrix
-  values_ = new float[rows_ * columns_];
-  MakeDenseMatrix(rows_, columns_, values_, generator);
+Matrix::Matrix(int rows, int columns, absl::BitGen *generator)
+    : Matrix(rows, columns) {
+  MakeDenseMatrix(rows_, columns_, values_.get(), generator);
+}
+
+Matrix::Matrix(const Matrix &other) : Matrix(other.Rows(), other.Columns()) {
+  std::copy(other.Values(), other.Values() + (rows_ * columns_), Values());
 }
 
 template <typename Value>
-void Matrix::InitFromCudaMatrix(const CudaMatrix<Value> &matrix) {
-  // Copy the matrix meta-data.
-  rows_ = matrix.Rows();
-  columns_ = matrix.Columns();
-
-  // Allocate memory for our matrix.
-  values_ = new float[rows_ * columns_];
-
+Matrix::Matrix(const CudaMatrix<Value> &matrix)
+    : Matrix(matrix.Rows(), matrix.Columns()) {
   // Allocate a temporary buffer on GPU to convert the values into.
   float *matrix_values_float = nullptr;
   CUDA_CALL(cudaMalloc(&matrix_values_float, sizeof(float) * rows_ * columns_));
   CUDA_CALL(Convert(matrix.Values(), matrix_values_float, rows_ * columns_));
 
   // Copy the results from the GPU.
-  CUDA_CALL(cudaMemcpy(values_, matrix_values_float,
+  CUDA_CALL(cudaMemcpy(values_.get(), matrix_values_float,
                        sizeof(float) * rows_ * columns_,
                        cudaMemcpyDeviceToHost));
 
   CUDA_CALL(cudaFree(matrix_values_float));
+}
+
+float Matrix::operator()(int row, int column) const {
+  return values_[row * columns_ + column];
+}
+
+float &Matrix::operator()(int row, int column) {
+  return values_[row * columns_ + column];
+}
+
+Matrix Matrix::T() const {
+  Matrix transposed(columns_, rows_);
+  for (int i = 0; i < rows_; ++i) {
+    for (int j = 0; j < columns_; ++j) {
+      transposed(j, i) = (*this)(i, j);
+    }
+  }
+  return transposed;
 }
 
 template <typename Value>
@@ -620,9 +683,15 @@ void CudaMatrix<Value>::InitFromMatrix(const Matrix &matrix) {
 // Explicit instantiations for template functions and classes.
 template class CudaSparseMatrix<float>;
 template class CudaSparseMatrix<half2>;
+template class CudaSparseMatrix<half>;
 template class CudaMatrix<float>;
 template class CudaMatrix<half2>;
-template void Matrix::InitFromCudaMatrix(const CudaMatrix<float> &);
-template void Matrix::InitFromCudaMatrix(const CudaMatrix<half2> &);
+template class CudaMatrix<half>;
+template Matrix::Matrix(const CudaMatrix<float> &);
+template Matrix::Matrix(const CudaMatrix<half2> &);
+template Matrix::Matrix(const CudaMatrix<half> &);
+template cudaError_t Convert(const short2*, int*, int);
+template cudaError_t Convert(const short*, int*, int);
+template cudaError_t Convert(const int*, short*, int);    
 
 }  // namespace sputnik

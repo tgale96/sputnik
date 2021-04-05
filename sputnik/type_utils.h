@@ -94,6 +94,11 @@ struct Value2Index<half2> {
 };
 
 template <>
+struct Value2Index<half> {
+  typedef short Index;
+};
+ 
+template <>
 struct Value2Index<half4> {
   typedef short4 Index;
 };

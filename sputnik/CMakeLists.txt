@@ -17,6 +17,10 @@ add_subdirectory(bias_relu)
 add_subdirectory(softmax)
 add_subdirectory(utils)
 
+set(SPUTNIK_BDSD_TEST_SRCS)
+set(SPUTNIK_BDSD_BENCHMARK_SRCS)
+add_subdirectory(block/bdsd)
+
 set(DIR_SRCS)
 
 ##
@@ -79,6 +83,8 @@ if (BUILD_TEST)
   set(SPUTNIK_TEST_SRCS)
   file(GLOB TMP matrix_utils*)
   list(APPEND SPUTNIK_TEST_SRCS ${TMP})
+  file(GLOB TMP block/matrix_utils*)
+  list(APPEND SPUTNIK_TEST_SRCS ${TMP})  
   file(GLOB TMP test_utils*)
   list(APPEND SPUTNIK_TEST_SRCS ${TMP})
 
@@ -110,6 +116,15 @@ if (BUILD_TEST)
     PROPERTIES LANGUAGE CUDA)  
   add_executable(depthwise_test ${SPUTNIK_DEPTHWISE_TEST_SRCS})
   target_link_libraries(depthwise_test sputnik ${SPUTNIK_TEST_LIBS})
+
+  # BDSD test build.
+  list(APPEND SPUTNIK_BDSD_TEST_SRCS ${SPUTNIK_TEST_SRCS})
+  
+  set(SPUTNIK_BDSD_TEST_CUDA_SRCS ${SPUTNIK_BDSD_TEST_SRCS})
+  list(FILTER SPUTNIK_BDSD_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
+  set_source_files_properties(${SPUTNIK_BDSD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  add_executable(bdsd_test ${SPUTNIK_BDSD_TEST_SRCS})
+  target_link_libraries(bdsd_test sputnik ${SPUTNIK_TEST_LIBS})  
 endif()
 
 # Optionally build the benchmark suite.
@@ -118,6 +133,8 @@ if (BUILD_BENCHMARK)
   set(SPUTNIK_BENCHMARK_SRCS)
   file(GLOB TMP matrix_utils*)
   list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})
+  file(GLOB TMP block/matrix_utils*)
+  list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})    
   file(GLOB TMP test_utils*)
   list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})
   

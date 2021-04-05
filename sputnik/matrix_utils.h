@@ -20,12 +20,13 @@
  * tests and benchmarks.
  */
 
+#include <memory>
 #include <vector>
 
+#include "absl/random/random.h"
 #include "sputnik/cuda_utils.h"
 #include "sputnik/test_utils.h"
 #include "sputnik/type_utils.h"
-#include "absl/random/random.h"
 
 namespace sputnik {
 
@@ -326,37 +327,37 @@ class Matrix {
    */
   Matrix(int rows, int columns, absl::BitGen* generator);
 
+  Matrix(const Matrix& other);
+
   /**
    * @brief Construct a matrix from a CUDA matrix.
    */
   template <typename Value>
-  explicit Matrix(const CudaMatrix<Value>& matrix) {
-    InitFromCudaMatrix(matrix);
-  }
+  explicit Matrix(const CudaMatrix<Value>& matrix);
 
-  ~Matrix() { delete[] values_; }
-
-  Matrix(const Matrix&) = delete;
-  Matrix& operator=(const Matrix&) = delete;
-  Matrix(Matrix&&) = delete;
-  Matrix& operator=(Matrix&&) = delete;
-
-  const float* Values() const { return values_; }
-  float* Values() { return values_; }
+  const float* Values() const { return values_.get(); }
+  float* Values() { return values_.get(); }
 
   int Rows() const { return rows_; }
 
   int Columns() const { return columns_; }
 
- protected:
+  /**
+   * @brief Returns a transposed copy of the matrix.
+   */
+  Matrix T() const;
+
+  float operator()(int row, int column) const;
+  float& operator()(int row, int column);
+
+ private:
+  Matrix(int rows, int columns);
+
   // Matrix value storage.
-  float* values_;
+  std::unique_ptr<float[]> values_;
 
   // Matrix meta-data.
   int rows_, columns_;
-
-  template <typename Value>
-  void InitFromCudaMatrix(const CudaMatrix<Value>& matrix);
 };
 
 /**
