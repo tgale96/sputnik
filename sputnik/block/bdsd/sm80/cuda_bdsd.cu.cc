@@ -202,27 +202,6 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
 			out_fragment[out_idx + 8],
 			out_fragment[out_idx + 1],			
 			out_fragment[out_idx + 9]);
-
-	    // if (out_idx == 0) {
-	    //   if (threadIdx.x < 4) {
-	    // 	printf("tid.x %d: lhs = %f, %f\n",
-	    // 	       threadIdx.x,
-	    // 	       __half2float(lhs_fragment[lhs_idx].x),
-	    // 	       __half2float(lhs_fragment[lhs_idx].y));
-	    //   }
-	    //   if (threadIdx.x < 4) {
-	    // 	printf("tid.x %d: rhs = %f, %f\n",
-	    // 	       threadIdx.x,
-	    // 	       __half2float(rhs_fragment[rhs_idx].x),
-	    // 	       __half2float(rhs_fragment[rhs_idx].y));
-	    //   }
-	    //   if (threadIdx.x == 0) {
-	    // 	printf("tid.x %d: out = %f\n",
-	    // 	       threadIdx.x,
-	    // 	       out_fragment[out_idx]);
-	    //   }
-	    // }	
-	    
 	  }
 	}
       }

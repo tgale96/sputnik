@@ -121,15 +121,6 @@ TYPED_TEST(BdsdTest, Bdsd) {
   // Create the output matrix on gpu & gpu.
   Matrix output_matrix(this->kDimM, this->kDimN, &this->generator_);
   CudaMatrix<half> output_matrix_gpu(output_matrix);
-
-  // std::cout << "lhs = " << std::endl;
-  // for (int i = 0; i < 32; ++i) {
-  //   std::cout << sparse_matrix.Values()[i] << std::endl;
-  // }
-  // std::cout << "rhs = " << std::endl;
-  // for (int i = 0; i < 32; ++i) {
-  //   std::cout << matrix.Values()[i * 64] << std::endl;
-  // }
   
   // Run the gpu kernel.
   CUDA_CALL(CudaBdsd(this->kDimM, this->kDimK, this->kDimN,
@@ -146,24 +137,8 @@ TYPED_TEST(BdsdTest, Bdsd) {
              sparse_matrix.ColumnIndices(), matrix.Values(),
              output_matrix.Values());
 
-  // std::cout << "Expected: " << std::endl;
-  // for (int i = 0; i < this->kDimM; ++i) {
-  //   for (int j = 0; j < this->kDimN; ++j) {
-  //     std::cout << output_matrix.Values()[i * this->kDimN + j] << ", ";
-  //   }
-  //   std::cout << std::endl;
-  // }
-
   // Verify the results.
   Matrix results(output_matrix_gpu);
-  
-  // std::cout << "Got: " << std::endl;
-  // for (int i = 0; i < this->kDimM; ++i) {
-  //   for (int j = 0; j < this->kDimN; ++j) {
-  //     std::cout << results.Values()[i * this->kDimN + j] << ", ";
-  //   }
-  //   std::cout << std::endl;
-  // }  
   
   auto comparator = Pointwise(
       NanSensitiveFloatNear(5e-02),

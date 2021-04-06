@@ -27,9 +27,7 @@ int RoundUp(int x, int b) {
 }
 
 void BenchmarkArgs(benchmark::internal::Benchmark* b) {
-  
-  // std::vector<int> dims = {512, 1024, 2048, 4096, 8192};
-  std::vector<int> dims;
+    std::vector<int> dims;
   for (int i = 0; i < 31; ++i) {
     dims.push_back(512 + i * 256);
   }
