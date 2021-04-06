@@ -43,7 +43,7 @@ class CudaBlockSparseMatrix : public CudaSparseMatrix<Value> {
  public:
   CudaBlockSparseMatrix(int rows, int columns, int nonzeros, int block_dim,
                         ElementDistribution weight_distribution,
-                        absl::BitGen* generator);
+                        absl::BitGen* generator, int pad_rows_to=4);
 
   explicit CudaBlockSparseMatrix(const BlockSparseMatrix& sparse_matrix);
 

@@ -165,10 +165,10 @@ template <typename Value>
 CudaBlockSparseMatrix<Value>::CudaBlockSparseMatrix(
     int rows, int columns, int nonzeros, int block_dim,
     ElementDistribution weight_distribution,
-    absl::BitGen* generator) {
+    absl::BitGen* generator, int pad_rows_to) {
   BlockSparseMatrix sparse_matrix(
       rows, columns, nonzeros, block_dim,
-      weight_distribution, generator);
+      weight_distribution, generator, pad_rows_to);
   InitFromBlockSparseMatrix(sparse_matrix);
 }
 

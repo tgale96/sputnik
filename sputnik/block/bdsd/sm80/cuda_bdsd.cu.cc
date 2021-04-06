@@ -32,6 +32,7 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
 
   // Block dimension parameters.
   static constexpr int kBlockDim = 32;
+  static constexpr int kBlockSize = kBlockDim * kBlockDim;
   
   // Other tile dimension parameters.
   static constexpr int kTileX = 64;
@@ -60,17 +61,15 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
         offsets + m_index_block);
     int nonzeros = Load(
         offsets + m_index_block + 1) - row_offset;
-    
-    // Exit early if we have no work to do.
-    if (nonzeros == 0) return;
 
     // Offset our sparse matrix pointers to the start of
     // this thread block's data and indices.
     //
     // TODO(tgale): Figure out if we can save registers by
     // recomputing these pointer rather than offsetting 
-    // them directly.    
-    short *indices_s1 = (short*)indices + row_offset;
+    // them directly.
+    const int row_offset_block = row_offset / kBlockSize;
+    short *indices_s1 = (short*)indices + row_offset_block;
     values = (half2*)((half*)values + row_offset);
 
     // Offset our dense matrix pointers to the start of
@@ -85,12 +84,12 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
     //
     // TODO(tgale): Turn this modulo into a bitwise and
     // with '3'. Turn this divide into a shift-right by 2.
-    dense_matrix += n_index;
-    const int tidy = threadIdx.x % 4;
-    const int tidx = threadIdx.x / 4;
-    dense_matrix = (half2*)((half*)dense_matrix + (tidy * n) * 8);
+    dense_matrix = (half2*)((half*)dense_matrix + n_index);
+    int tidy = threadIdx.x % 4;
+    int tidx = threadIdx.x / 4;
+    dense_matrix = (half2*)((half*)dense_matrix + tidy * n * 8);
     half8 *dense_matrix_h8 = (half8*)dense_matrix + tidx;
-    
+
     // Register fragment for sparse matrix data. Each
     // thread owns 1/32nd of a 32x32 tile for a total
     // of 32 half-precision values - i.e., 16x half2s.
@@ -102,13 +101,13 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
     // Each thread loads 8x halfs in a single instruction.
     // We execute four loads per-thread per-tile. Threads
     // are strided in the standard way.
-    half8 *values_h8 = ((half8*)values) + threadIdx.x;
+    half8 *values_h8 = (half8*)values + threadIdx.x;
 
     // Register fragment for dense matrix data. Each
     // thread owns 1/32nd of a 32x64 tile for a total
     // of 64 half-precision values - i.e., 32x half2s.
     half2 rhs_fragment[32];
-    half8 *rhs_fragment_h8 = (half8*)lhs_fragment;
+    half8 *rhs_fragment_h8 = (half8*)rhs_fragment;
 
     // Register fragment for the results accumulators.
     //
@@ -123,8 +122,6 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
     /// Main loop.
     //
 
-    printf("tid.x %d: nonzeros = %d\n", threadIdx.x, nonzeros);
-    
     for (; nonzeros >= kTileK; nonzeros -= kTileK * kBlockDim) {
       // Load the sparse block column index.
       //
@@ -146,7 +143,7 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
       }      
 
       // Load the dense matrix tile data.
-      half8 *rhs_h8 = dense_matrix_h8 + lhs_index;
+      half8 *rhs_h8 = (half8*)((half*)dense_matrix_h8 + lhs_index);
 #pragma unroll
       for (int i = 0; i < 8; ++i) {
 	rhs_fragment_h8[i] = Load(rhs_h8);
@@ -197,19 +194,37 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
 	    const int lhs_idx = k_item_idx + y_item_idx * 4;
 	    const int rhs_idx = x_item_idx + 8 * k_item_idx;
 	    const int out_idx = 2 * x_item_idx + y_item_idx * 16;
+
 	    mma_m8n16k8(lhs_fragment[lhs_idx],
 			rhs_fragment[rhs_idx],
 			rhs_fragment[rhs_idx + 4],
 			out_fragment[out_idx],
-			out_fragment[out_idx + 1],
 			out_fragment[out_idx + 8],
+			out_fragment[out_idx + 1],			
 			out_fragment[out_idx + 9]);
+
+	    // if (out_idx == 0) {
+	    //   if (threadIdx.x < 4) {
+	    // 	printf("tid.x %d: lhs = %f, %f\n",
+	    // 	       threadIdx.x,
+	    // 	       __half2float(lhs_fragment[lhs_idx].x),
+	    // 	       __half2float(lhs_fragment[lhs_idx].y));
+	    //   }
+	    //   if (threadIdx.x < 4) {
+	    // 	printf("tid.x %d: rhs = %f, %f\n",
+	    // 	       threadIdx.x,
+	    // 	       __half2float(rhs_fragment[rhs_idx].x),
+	    // 	       __half2float(rhs_fragment[rhs_idx].y));
+	    //   }
+	    //   if (threadIdx.x == 0) {
+	    // 	printf("tid.x %d: out = %f\n",
+	    // 	       threadIdx.x,
+	    // 	       out_fragment[out_idx]);
+	    //   }
+	    // }	
+	    
 	  }
 	}
-      }
-
-      if (threadIdx.x == 0) {
-	printf("tid.x %d, tid.y %d: %f\n", threadIdx.x, out_fragment[0]);
       }
     }
     
@@ -220,26 +235,31 @@ struct BdsdKernel_b32_m32n64k32_half8_half8 {
       out_fragment_h2[i] = __float22half2_rn(make_float2(
           out_fragment[i * 2], out_fragment[i * 2 + 1]));
     }
-    half8 *out_fragment_h8 = (half8*)out_fragment;
+    half8 *out_fragment_h8 = (half8*)out_fragment_h2;
     
     // Write the result to the output.
     //
-    // Write to the output follow the same pattern as
-    // reads from the input dense matrix. Note that
-    // there are no residue tiles because the k-dim
-    // tile size matches the block size.
+    // Note that there are no residue tiles because
+    // the k-dim tile size matches the block size.
     //
     // TODO(tgale): Make sure the thread indices are
-    // re-computed here.
-    output_matrix += m_index * n + n_index;
-    const int tidy_v2 = threadIdx.x % 4;
-    const int tidx_v2 = threadIdx.x / 4;
-    output_matrix = (half2*)((half*)output_matrix + (tidy_v2 * n) * 8);
-    half8 *output_matrix_h8 = (half8*)output_matrix + tidx_v2;
+    // re-computed here. Could also re-compute m/n
+    // indices.
+    output_matrix = (half2*)((half*)output_matrix + m_index * n + n_index);
+    tidy = threadIdx.x % 4;
+    tidx = threadIdx.x / 4;
+    output_matrix = (half2*)((half*)output_matrix + tidy * n * 2);
+    half8 *output_matrix_h8 = (half8*)output_matrix + tidx;
+
 #pragma unroll
-    for (int i = 0; i < 8; ++i) {
-      Store(out_fragment_h8[i], output_matrix_h8);
-      output_matrix_h8 = (half8*)((half*)output_matrix_h8 + n);
+    for (int i = 0; i < 4; ++i) {
+      half8* out_h8 = output_matrix_h8;
+#pragma unroll
+      for (int j = 0; j < 2; ++j) {
+	Store(out_fragment_h8[i * 2 + j], out_h8);
+	out_h8 = (half8*)((half*)out_h8 + n);
+      }
+      output_matrix_h8 = (half8*)((half*)output_matrix_h8 + 8 * n);
     }
   }
   

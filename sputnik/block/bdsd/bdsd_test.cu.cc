@@ -1,3 +1,17 @@
+// Copyright 2020 The Sputnik Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/bdsd/cuda_bdsd.h"
 #include "sputnik/block/matrix_utils.h"
@@ -72,8 +86,21 @@ class BdsdTest : public ::testing::Test {
 };
 
 typedef ::testing::Types<
-  Problem<32, 32, 64, 1024, 32>>
-  TestProblems;
+  Problem<32, 32, 64, 32*32, 32>,   // Minimum problem size.
+  Problem<32, 64, 64, 32*64, 32>,   // Two inner loops.
+  Problem<64, 32, 64, 64*32, 32>,   // Two rows of blocks.
+  Problem<32, 32, 128, 32*32, 32>,  // Two tile columns.
+  Problem<32, 64, 64, 32*32, 32>,   // 50% sparse.
+  Problem<64, 64, 64, 32*64, 32>,   // 50% sparse, multi-row.
+  // Larger problems.
+  Problem<128, 128, 128, 32*128, 32>,
+  Problem<512, 512, 1024, 512*512, 32>,
+  Problem<512, 512, 1024, 256*512, 32>,
+  Problem<512, 512, 1024, 128*512, 32>,
+  Problem<1024, 1024, 1024, 1024*1024, 32>,
+  Problem<1024, 1024, 1024, 512*1024, 32>,
+  Problem<1024, 1024, 1024, 256*1024, 32>
+  > TestProblems;
 
 TYPED_TEST_SUITE(BdsdTest, TestProblems);
 
@@ -86,8 +113,6 @@ TYPED_TEST(BdsdTest, Bdsd) {
       &this->generator_,
       /*pad_rows_to=*/1);
   CudaBlockSparseMatrix<half> sparse_matrix_gpu(sparse_matrix);
-
-  std::cout << "nnz = " << sparse_matrix_gpu.NumElementsWithPadding() << std::endl;
   
   // Create the dense matrix on cpu & gpu
   Matrix matrix(this->kDimK, this->kDimN, &this->generator_);
@@ -97,13 +122,21 @@ TYPED_TEST(BdsdTest, Bdsd) {
   Matrix output_matrix(this->kDimM, this->kDimN, &this->generator_);
   CudaMatrix<half> output_matrix_gpu(output_matrix);
 
-  int *tmp = sparse_matrix_gpu.RowOffsets();
-  short *tmp2 = sparse_matrix_gpu.ColumnIndices();
+  // std::cout << "lhs = " << std::endl;
+  // for (int i = 0; i < 32; ++i) {
+  //   std::cout << sparse_matrix.Values()[i] << std::endl;
+  // }
+  // std::cout << "rhs = " << std::endl;
+  // for (int i = 0; i < 32; ++i) {
+  //   std::cout << matrix.Values()[i * 64] << std::endl;
+  // }
+  
   // Run the gpu kernel.
   CUDA_CALL(CudaBdsd(this->kDimM, this->kDimK, this->kDimN,
 		     sparse_matrix_gpu.NumElementsWithPadding(),
 		     this->kBlockDim, sparse_matrix_gpu.Values(),
-		     tmp, tmp2,
+		     sparse_matrix_gpu.RowOffsets(),
+		     sparse_matrix_gpu.ColumnIndices(),
 		     matrix_gpu.Values(),
 		     output_matrix_gpu.Values(), 0));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
@@ -113,8 +146,25 @@ TYPED_TEST(BdsdTest, Bdsd) {
              sparse_matrix.ColumnIndices(), matrix.Values(),
              output_matrix.Values());
 
+  // std::cout << "Expected: " << std::endl;
+  // for (int i = 0; i < this->kDimM; ++i) {
+  //   for (int j = 0; j < this->kDimN; ++j) {
+  //     std::cout << output_matrix.Values()[i * this->kDimN + j] << ", ";
+  //   }
+  //   std::cout << std::endl;
+  // }
+
   // Verify the results.
   Matrix results(output_matrix_gpu);
+  
+  // std::cout << "Got: " << std::endl;
+  // for (int i = 0; i < this->kDimM; ++i) {
+  //   for (int j = 0; j < this->kDimN; ++j) {
+  //     std::cout << results.Values()[i * this->kDimN + j] << ", ";
+  //   }
+  //   std::cout << std::endl;
+  // }  
+  
   auto comparator = Pointwise(
       NanSensitiveFloatNear(5e-02),
       ToVector(output_matrix));

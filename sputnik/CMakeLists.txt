@@ -165,5 +165,14 @@ if (BUILD_BENCHMARK)
     ${SPUTNIK_DEPTHWISE_BENCHMARK_CUDA_SRCS}
     PROPERTIES LANGUAGE CUDA)  
   add_executable(depthwise_benchmark ${SPUTNIK_DEPTHWISE_BENCHMARK_SRCS})
-  target_link_libraries(depthwise_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})    
+  target_link_libraries(depthwise_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
+
+  # BDSD benchmark build.
+  list(APPEND SPUTNIK_BDSD_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
+  
+  set(SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS ${SPUTNIK_BDSD_BENCHMARK_SRCS})
+  list(FILTER SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
+  set_source_files_properties(${SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  add_executable(bdsd_benchmark ${SPUTNIK_BDSD_BENCHMARK_SRCS})
+  target_link_libraries(bdsd_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})  
 endif()
