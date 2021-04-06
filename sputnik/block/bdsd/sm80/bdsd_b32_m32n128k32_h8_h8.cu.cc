@@ -252,7 +252,7 @@ struct bdsd_b32_m32n128k32_h8_h8 {
   
 };
 
-__global__ void __launch_bounds__(32) bdsd_b32_m32n128k32_h8_h8_kernel(
+__global__ void __launch_bounds__(32, 8) bdsd_b32_m32n128k32_h8_h8_kernel(
     int m, int k, int n,
     const half2* __restrict__ values,
     const int* __restrict__ offsets,

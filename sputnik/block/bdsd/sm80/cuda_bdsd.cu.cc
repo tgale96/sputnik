@@ -14,7 +14,7 @@ cudaError_t CudaBdsd(
     half* __restrict__ output_matrix,
     cudaStream_t stream) {
   // TODO(tgale): Add a proper kernel selector.
-  if (can_launch_bdsd_b32_m32n128k32_h8_h8(m, k, n, nonzeros, block_dim) && false) {
+  if (can_launch_bdsd_b32_m32n128k32_h8_h8(m, k, n, nonzeros, block_dim)) {
     return launch_bdsd_b32_m32n128k32_h8_h8(
         m, k, n, nonzeros, block_dim,
 	values, row_offsets, column_indices,
