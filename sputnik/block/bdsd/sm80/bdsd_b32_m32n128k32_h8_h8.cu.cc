@@ -16,18 +16,24 @@ void __device__ __forceinline__ Transpose(half2 &x, half2 &y) {
   y.x = tmp;
 }
 
-void __device__ __forceinline__ mma_m8n16k8(
-  const half2 &lhs0, const half2 &rhs0, const half2 &rhs1,
+void __device__ __forceinline__ mma_m8n16k16(
+  const half2 &lhs0, const half2 &lhs1, const half2 &rhs0,
+  const half2 &rhs1, const half2 &rhs2, const half2 &rhs3,
   float &out0, float &out1, float &out2, float &out3) {
-  asm("mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
-      "{%0,%1,%2,%3}, {%4,%5}, {%6}, {%7,%8,%9,%10};\n"
+  asm volatile(
+      "mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32  "
+      "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, "
+      "{%10,%11,%12,%13};\n"
       : "=f"(out0), "=f"(out1), "=f"(out2), "=f"(out3)
       : "r"(BitCast<uint32_t>(rhs0)),
 	"r"(BitCast<uint32_t>(rhs1)),
-	"r"(BitCast<uint32_t>(lhs0)), 
+	"r"(BitCast<uint32_t>(rhs2)),
+	"r"(BitCast<uint32_t>(rhs3)),
+	"r"(BitCast<uint32_t>(lhs0)),
+	"r"(BitCast<uint32_t>(lhs1)),
 	"f"(out0), "f"(out1), "f"(out2), "f"(out3));
 }
-    
+
 struct bdsd_b32_m32n128k32_h8_h8 {
 
   // Block dimension parameters.
@@ -116,12 +122,17 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     //
     // TODO(tgale): There are alternative techniques for
     // zero-ing our accumulators that we should explore.
-    float out_fragment[128] = {};
-    
+    float out_fragment[128];
+#pragma unroll
+    for (int i = 0; i < 128; ++i) {
+      // asm volatile("mov.f32 %0, 0F00000000;" : "=f"(out_fragment[i]));
+      out_fragment[i] = 0.0f;
+    }
+
     //
     /// Main loop.
     //
-
+#pragma unroll 1
     for (; nonzeros >= kTileK; nonzeros -= kTileK * kBlockDim) {
       // Load the sparse block column index.
       //
@@ -191,22 +202,25 @@ struct bdsd_b32_m32n128k32_h8_h8 {
       // the larger instruction when we use a larger k-dim
       // tile size.
 #pragma unroll
-      for (int k_item_idx = 0; k_item_idx < 4; ++k_item_idx) {
+      for (int k_item_idx = 0; k_item_idx < 2; ++k_item_idx) {
 #pragma unroll
 	for (int y_item_idx = 0; y_item_idx < 4; ++y_item_idx) {
 #pragma unroll
 	  for (int x_item_idx = 0; x_item_idx < 8; ++x_item_idx) {
-	    const int lhs_idx = k_item_idx + y_item_idx * 4;
-	    const int rhs_idx = x_item_idx + 16 * k_item_idx;
+	    const int lhs_idx = k_item_idx * 2 + y_item_idx * 4;
+	    const int rhs_idx = x_item_idx + 32 * k_item_idx;
 	    const int out_idx = 2 * x_item_idx + y_item_idx * 32;
 
-	    mma_m8n16k8(lhs_fragment[lhs_idx],
-			rhs_fragment[rhs_idx],
-			rhs_fragment[rhs_idx + 8],
-			out_fragment[out_idx],
-			out_fragment[out_idx + 16],
-			out_fragment[out_idx + 1],			
-			out_fragment[out_idx + 17]);
+	    mma_m8n16k16(lhs_fragment[lhs_idx],
+			 lhs_fragment[lhs_idx + 1],
+			 rhs_fragment[rhs_idx],
+			 rhs_fragment[rhs_idx + 8],
+			 rhs_fragment[rhs_idx + 16],
+			 rhs_fragment[rhs_idx + 24],
+			 out_fragment[out_idx],
+			 out_fragment[out_idx + 16],
+			 out_fragment[out_idx + 1],
+			 out_fragment[out_idx + 17]);
 	  }
 	}
       }

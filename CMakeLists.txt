@@ -31,7 +31,7 @@ endif()
 
 create_cuda_gencode_flags(CUDA_GENCODE_FLAGS ${CUDA_ARCHS})
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${CUDA_GENCODE_FLAGS}")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --ptxas-options=-v")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --ptxas-options=-v -keep")
 
 ##
 ### Project build.
