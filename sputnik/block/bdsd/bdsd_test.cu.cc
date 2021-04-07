@@ -136,10 +136,9 @@ TYPED_TEST(BdsdTest, Bdsd) {
              sparse_matrix.Values(), sparse_matrix.RowOffsets(),
              sparse_matrix.ColumnIndices(), matrix.Values(),
              output_matrix.Values());
-
-  // Verify the results.
-  Matrix results(output_matrix_gpu);
   
+  // Verify the results.
+  Matrix results(output_matrix_gpu);  
   auto comparator = Pointwise(
       NanSensitiveFloatNear(5e-02),
       ToVector(output_matrix));

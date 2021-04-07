@@ -202,11 +202,11 @@ struct bdsd_b32_m32n128k32_h8_h8 {
 
 	    mma_m8n16k8(lhs_fragment[lhs_idx],
 			rhs_fragment[rhs_idx],
-			rhs_fragment[rhs_idx + 4],
+			rhs_fragment[rhs_idx + 8],
 			out_fragment[out_idx],
-			out_fragment[out_idx + 8],
+			out_fragment[out_idx + 16],
 			out_fragment[out_idx + 1],			
-			out_fragment[out_idx + 9]);
+			out_fragment[out_idx + 17]);
 	  }
 	}
       }
@@ -241,8 +241,8 @@ struct bdsd_b32_m32n128k32_h8_h8 {
 #pragma unroll
       for (int j = 0; j < 2; ++j) {
 #pragma unroll
-	for (int k = 0; k < 2; ++k) {
-	  Store(out_fragment_h8[i * 2 + j * 2 + k], out_h8 + 8 * k);
+	for (int l = 0; l < 2; ++l) {
+	  Store(out_fragment_h8[i * 4 + j * 2 + l], out_h8 + 8 * l);
 	}
 	out_h8 = (half8*)((half*)out_h8 + n);	
       }
@@ -297,8 +297,8 @@ cudaError_t launch_bdsd_b32_m32n128k32_h8_h8(
   CHECK_EQ(block_size, 32);
   CHECK_EQ(m % block_size, 0);
   CHECK_EQ(k % block_size, 0);
-  CHECK_EQ(n % 64, 0);
-  dim3 grid_dim(cdiv(m, block_size), cdiv(n, 64), 1);
+  CHECK_EQ(n % 128, 0);
+  dim3 grid_dim(cdiv(m, block_size), cdiv(n, 128), 1);
   dim3 block_dim(32, 1, 1);
 
   bdsd_b32_m32n128k32_h8_h8_kernel<<<grid_dim, block_dim, 0, stream>>>(
