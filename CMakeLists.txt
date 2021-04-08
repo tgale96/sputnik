@@ -21,7 +21,7 @@ include(cmake/Dependencies.cmake)
 ### C++ and CUDA flags.
 ##
 
-# Requires C++11.
+# Requires C++14.
 set(CMAKE_CXX_STANDARD 14)
 
 if(BUILD_TEST)
@@ -31,7 +31,7 @@ endif()
 
 create_cuda_gencode_flags(CUDA_GENCODE_FLAGS ${CUDA_ARCHS})
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${CUDA_GENCODE_FLAGS}")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --ptxas-options=-v -keep")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --ptxas-options=-v")
 
 ##
 ### Project build.

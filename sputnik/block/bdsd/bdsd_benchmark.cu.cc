@@ -27,10 +27,12 @@ int RoundUp(int x, int b) {
 }
 
 void BenchmarkArgs(benchmark::internal::Benchmark* b) {
-    std::vector<int> dims;
+  std::vector<int> dims;
   for (int i = 0; i < 31; ++i) {
     dims.push_back(512 + i * 256);
   }
+  // std::vector<int> dims = {8192};
+  
   std::vector<float> sparsities = {1.0f};
 
   for (const auto& d : dims) {
