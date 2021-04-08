@@ -165,20 +165,18 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     // asm("mov.b32 %0, %0;" : "+r"(tidx) :);
     // asm("mov.b32 %0, %0;" : "+r"(tidy) :);    
 
+    // Prefetch the index for the next iteration.
+    int lhs_index;
+    if (nonzeros >= kTileK * kBlockDim) {
+      lhs_index = Load(indices_s1) * n;
+      ++indices_s1;
+    }
+    
     //
     /// Main loop.
     //
 #pragma unroll 1
-    for (; nonzeros >= kTileK; nonzeros -= kTileK * kBlockDim) {
-      // Load the sparse block column index.
-      //
-      // TODO(tgale): We could prefetch this to avoid data-dependent
-      // load latency within a loop iteration. We could also load
-      // multiple (e.g., 4 or 8) indices in one go to help avoid
-      // memory system waste.
-      int lhs_index = Load(indices_s1) * n;
-      ++indices_s1;
-
+    for (; nonzeros >= kTileK * kBlockDim; nonzeros -= kTileK * kBlockDim) {
       // Load the sparse block data.
       //
       // We load an entire 32x32 sparse block in 4x 8-wide
@@ -202,6 +200,12 @@ struct bdsd_b32_m32n128k32_h8_h8 {
 	rhs_h8 = (half8*)offset((half*)rhs_h8, n);
       }
 
+      // Prefect the index for the next iteration.
+      if (nonzeros >= 2 * kTileK * kBlockDim) {
+	lhs_index = Load(indices_s1) * n;
+	++indices_s1;
+      }
+      
       // Transpose the dense matrix registers so that
       // 16-bit values are properly packed into 32-bit
       // registers for the mma instructions.
