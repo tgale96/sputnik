@@ -10,10 +10,31 @@ namespace sm80 {
     
 namespace {
 
+uint32_t __device__ __forceinline__ asuint(half2 x) {
+  return *reinterpret_cast<uint32_t*>(&x);
+}
+  
+void __device__ __forceinline__ store_h8(const half8 &x, half8 *p) {
+  asm volatile("st.global.v4.b32 [%0], {%1,%2,%3,%4};"
+	       :: "l"(p), "r"(asuint(x.x)), "r"(asuint(x.y)),
+		"r"(asuint(x.z)), "r"(asuint(x.w)) : "memory");
+}
+  
 void __device__ __forceinline__ Transpose(half2 &x, half2 &y) {
   half tmp = x.y;
   x.y = y.x;
   y.x = tmp;
+}
+
+half8 __device__ __forceinline__ load_nc_h8(const half8 *p) {
+  half8 out;
+  asm volatile("ld.global.nc.v4.b32 {%0,%1,%2,%3}, [%4];"
+	       : "=r"(*reinterpret_cast<uint32_t*>(&out.x)),
+		 "=r"(*reinterpret_cast<uint32_t*>(&out.y)),
+		 "=r"(*reinterpret_cast<uint32_t*>(&out.z)),
+		 "=r"(*reinterpret_cast<uint32_t*>(&out.w))
+	       : "l"(p));
+  return out;
 }
 
 void __device__ __forceinline__ mma_m8n16k16(
@@ -25,15 +46,24 @@ void __device__ __forceinline__ mma_m8n16k16(
       "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, "
       "{%10,%11,%12,%13};\n"
       : "=f"(out0), "=f"(out1), "=f"(out2), "=f"(out3)
-      : "r"(BitCast<uint32_t>(rhs0)),
-	"r"(BitCast<uint32_t>(rhs1)),
-	"r"(BitCast<uint32_t>(rhs2)),
-	"r"(BitCast<uint32_t>(rhs3)),
-	"r"(BitCast<uint32_t>(lhs0)),
-	"r"(BitCast<uint32_t>(lhs1)),
+      : "r"(asuint(rhs0)),
+	"r"(asuint(rhs1)),
+	"r"(asuint(rhs2)),
+	"r"(asuint(rhs3)),
+	"r"(asuint(lhs0)),
+	"r"(asuint(lhs1)),
 	"f"(out0), "f"(out1), "f"(out2), "f"(out3));
 }
 
+template <typename T>
+__device__ __forceinline__ T* offset(T* p, int off) {
+  // Calculate the byte offset as a 32-bit integer and offset
+  // pointer directly in bytes to avoid 64-bit arithmetic.
+  int off_bytes = off * sizeof(T);
+  return reinterpret_cast<T*>(const_cast<char*>(
+      reinterpret_cast<const char*>(p) + off_bytes));
+}
+  
 struct bdsd_b32_m32n128k32_h8_h8 {
 
   // Block dimension parameters.
@@ -64,9 +94,9 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     
     // Row offset and nonzeros in scalar elements.
     const int row_offset = Load(
-        offsets + m_index_block);
+        offset(offsets, m_index_block));
     int nonzeros = Load(
-        offsets + m_index_block + 1) - row_offset;
+        offset(offsets, m_index_block) + 1) - row_offset;
 
     // Offset our sparse matrix pointers to the start of
     // this thread block's data and indices.
@@ -75,8 +105,8 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     // recomputing these pointer rather than offsetting 
     // them directly.
     const int row_offset_block = row_offset / kBlockSize;
-    short *indices_s1 = (short*)indices + row_offset_block;
-    values = (half2*)((half*)values + row_offset);
+    short *indices_s1 = offset((short*)indices, row_offset_block);
+    values = (half2*)offset((half*)values, row_offset);
 
     // Offset our dense matrix pointers to the start of
     // this thread block's data.
@@ -90,11 +120,11 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     //
     // TODO(tgale): Turn this modulo into a bitwise and
     // with '3'. Turn this divide into a shift-right by 2.
-    dense_matrix = (half2*)((half*)dense_matrix + n_index);
+    dense_matrix = (half2*)offset((half*)dense_matrix, n_index);
     int tidy = threadIdx.x % 4;
     int tidx = threadIdx.x / 4;
-    dense_matrix = (half2*)((half*)dense_matrix + tidy * n * 8);
-    half8 *dense_matrix_h8 = (half8*)dense_matrix + tidx;
+    dense_matrix = (half2*)offset((half*)dense_matrix, tidy * n * 8);
+    half8 *dense_matrix_h8 = offset((half8*)dense_matrix, tidx);
 
     // Register fragment for sparse matrix data. Each
     // thread owns 1/32nd of a 32x32 tile for a total
@@ -107,7 +137,7 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     // Each thread loads 8x halfs in a single instruction.
     // We execute four loads per-thread per-tile. Threads
     // are strided in the standard way.
-    half8 *values_h8 = (half8*)values + threadIdx.x;
+    half8 *values_h8 = offset((half8*)values, threadIdx.x);
 
     // Register fragment for dense matrix data. Each
     // thread owns 1/32nd of a 32x128 tile for a total
@@ -125,9 +155,15 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     float out_fragment[128];
 #pragma unroll
     for (int i = 0; i < 128; ++i) {
-      // asm volatile("mov.f32 %0, 0F00000000;" : "=f"(out_fragment[i]));
-      out_fragment[i] = 0.0f;
+      // NOTE: The compiler always duplicates the zeroing instructions.
+      // Doing this with asm avoids this issue.
+      asm volatile("mov.f32 %0, 0F00000000;" : "=f"(out_fragment[i]));
     }
+
+    // TODO(tgale): Figure out a way to stop the compiler from
+    // reusing these values across the main loop.
+    // asm("mov.b32 %0, %0;" : "+r"(tidx) :);
+    // asm("mov.b32 %0, %0;" : "+r"(tidy) :);    
 
     //
     /// Main loop.
@@ -149,21 +185,21 @@ struct bdsd_b32_m32n128k32_h8_h8 {
       // vector loads.
 #pragma unroll
       for (int i = 0; i < 4; ++i) {
-	lhs_fragment_h8[i] = Load(values_h8);
-	values_h8 += 32;
+	lhs_fragment_h8[i] = load_nc_h8(values_h8);
+	values_h8 = offset(values_h8, 32);
       }      
 
       // Load the dense matrix tile data.
-      half8 *rhs_h8 = (half8*)((half*)dense_matrix_h8 + lhs_index);
+      half8 *rhs_h8 = (half8*)offset((half*)dense_matrix_h8, lhs_index);
 #pragma unroll
       for (int i = 0; i < 8; ++i) {
 	half8 *inner_rhs_h8 = rhs_h8;
 #pragma unroll
 	for (int j = 0; j < 2; ++j) {
-	  rhs_fragment_h8[i * 2 + j] = Load(inner_rhs_h8);
-	  inner_rhs_h8 += 8;
+	  rhs_fragment_h8[i * 2 + j] = load_nc_h8(inner_rhs_h8);
+	  inner_rhs_h8 = offset(inner_rhs_h8, 8);
 	}
-	rhs_h8 = (half8*)((half*)rhs_h8 + n);
+	rhs_h8 = (half8*)offset((half*)rhs_h8, n);
       }
 
       // Transpose the dense matrix registers so that
@@ -243,11 +279,11 @@ struct bdsd_b32_m32n128k32_h8_h8 {
     // TODO(tgale): Make sure the thread indices are
     // re-computed here. Could also re-compute m/n
     // indices.
-    output_matrix = (half2*)((half*)output_matrix + m_index * n + n_index);
+    output_matrix = (half2*)offset((half*)output_matrix, m_index * n + n_index);
     tidy = threadIdx.x % 4;
     tidx = threadIdx.x / 4;
-    output_matrix = (half2*)((half*)output_matrix + tidy * n * 2);
-    half8 *output_matrix_h8 = (half8*)output_matrix + tidx;
+    output_matrix = (half2*)offset((half*)output_matrix, tidy * n * 2);
+    half8 *output_matrix_h8 = offset((half8*)output_matrix, tidx);
 
 #pragma unroll
     for (int i = 0; i < 4; ++i) {
@@ -256,11 +292,11 @@ struct bdsd_b32_m32n128k32_h8_h8 {
       for (int j = 0; j < 2; ++j) {
 #pragma unroll
 	for (int l = 0; l < 2; ++l) {
-	  Store(out_fragment_h8[i * 4 + j * 2 + l], out_h8 + 8 * l);
+	  store_h8(out_fragment_h8[i * 4 + j * 2 + l], offset(out_h8, 8 * l));
 	}
-	out_h8 = (half8*)((half*)out_h8 + n);	
+	out_h8 = (half8*)offset((half*)out_h8, n);	
       }
-      output_matrix_h8 = (half8*)((half*)output_matrix_h8 + 8 * n);
+      output_matrix_h8 = (half8*)offset((half*)output_matrix_h8, 8 * n);
     }
   }
   
