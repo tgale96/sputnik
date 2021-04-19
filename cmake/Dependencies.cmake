@@ -10,6 +10,9 @@ list(APPEND SPUTNIK_LIBS "cudart_static;cublas_static;cusparse_static;culibos;cu
 find_package(Glog REQUIRED)
 list(APPEND SPUTNIK_LIBS ${GLOG_LIBRARIES})
 
+# CUTLASS.
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/cutlass/include)
+
 if (BUILD_TEST)
   # Google Abseil.
   add_subdirectory(third_party/abseil-cpp)

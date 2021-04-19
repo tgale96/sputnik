@@ -1,4 +1,5 @@
 add_subdirectory(sm80)
+add_subdirectory(cutlass)
 
 set(DIR_SRCS)
 
