@@ -56,17 +56,61 @@ class GemmTest : public ::testing::Test {
   }
 };
 
-typedef ::testing::Types<Problem<8, 8, 8>> TestProblems;
+typedef ::testing::Types<
+  Problem<8, 8, 8>,
+  Problem<16, 8, 8>,
+  Problem<8, 16, 8>,
+  Problem<32, 64, 128>,
+  Problem<128, 512, 64>,
+  Problem<512, 512, 1024>
+  > TestProblems;
 
 TYPED_TEST_SUITE(GemmTest, TestProblems);
 
-TYPED_TEST(GemmTest, Gemm) {
+TYPED_TEST(GemmTest, GemmTN) {
+  // Create the sparse matrix on cpu & gpu.
+  Matrix lhs(this->kDimK, this->kDimM, &this->generator_);
+  CudaMatrix<half> lhs_gpu(lhs);
+  
+  // Create the dense matrix on cpu & gpu
+  Matrix rhs(this->kDimK, this->kDimN, &this->generator_);
+  CudaMatrix<half> rhs_gpu(rhs);
+
+  // Create the output matrix on gpu & gpu.
+  Matrix out(this->kDimM, this->kDimN, &this->generator_);
+  CudaMatrix<half> out_gpu(out);
+  
+  // Run the gpu kernel.
+  CUDA_CALL(cutlass::hgemm_tn(this->kDimM,
+			      this->kDimN,
+			      this->kDimK,
+			      lhs_gpu.Values(),
+			      rhs_gpu.Values(),
+			      out_gpu.Values()));
+  CUDA_CALL(cudaStreamSynchronize(nullptr));
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  // Note the transposed LHS matrix.
+  this->Gemm(this->kDimM,
+	     this->kDimN,
+	     this->kDimK,	     
+	     lhs.T().Values(),
+	     rhs.Values(),
+	     out.Values());
+  
+  // Verify the results.
+  Matrix results(out_gpu);  
+  auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
+  ASSERT_THAT(ToVector(results), comparator);
+}
+
+TYPED_TEST(GemmTest, GemmNT) {
   // Create the sparse matrix on cpu & gpu.
   Matrix lhs(this->kDimM, this->kDimK, &this->generator_);
   CudaMatrix<half> lhs_gpu(lhs);
   
   // Create the dense matrix on cpu & gpu
-  Matrix rhs(this->kDimK, this->kDimN, &this->generator_);
+  Matrix rhs(this->kDimN, this->kDimK, &this->generator_);
   CudaMatrix<half> rhs_gpu(rhs);
 
   // Create the output matrix on gpu & gpu.
@@ -81,24 +125,21 @@ TYPED_TEST(GemmTest, Gemm) {
 			      rhs_gpu.Values(),
 			      out_gpu.Values()));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
+  CUDA_CALL(cudaDeviceSynchronize());
 
-  // Note the transposed RHS matrix.
+  // Note the transposed LHS matrix.
   this->Gemm(this->kDimM,
 	     this->kDimN,
 	     this->kDimK,	     
-	     lhs.T().Values(),
-	     rhs.Values(),
+	     lhs.Values(),
+	     rhs.T().Values(),
 	     out.Values());
-
-  for (int i = 0; i < 64; ++i) {
-    std::cout << out.Values()[i] << std::endl;
-  }
   
   // Verify the results.
   Matrix results(out_gpu);  
   auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
   ASSERT_THAT(ToVector(results), comparator);
 }
-
+  
 }  // namespace block
 }  // namespace sputnik
