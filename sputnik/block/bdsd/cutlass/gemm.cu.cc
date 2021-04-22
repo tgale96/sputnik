@@ -1,4 +1,5 @@
 #include "sputnik/block/bdsd/cutlass/cuda_bdsd.h"
+#include "sputnik/block/cutlass/default_block_gemm.h"
 
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/device/gemm.h"
@@ -42,16 +43,14 @@ struct gemm_mixed_256x128_32x3_nt_align8 :
   public gemm_mixed_256x128_32x3_nt_align8_base { };
 
 using gemm_mixed_128x256_32x3_tn_align8_base = 
-  typename ::cutlass::gemm::kernel::DefaultGemmUniversal<
+  typename DefaultBlockGemm<
   // Transposed B operand.
   ::cutlass::half_t,
   ::cutlass::layout::RowMajor,
-  ::cutlass::ComplexTransform::kNone,
   8,
   // Non-transposed A operand.
   ::cutlass::half_t,
   ::cutlass::layout::ColumnMajor,
-  ::cutlass::ComplexTransform::kNone,
   8,
   // C operand.
   ::cutlass::half_t,

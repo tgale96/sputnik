@@ -46,11 +46,6 @@ public:
   using WarpCount = typename Mma::WarpCount;
   static int const kThreadCount = 32 * WarpCount::kCount;
 
-  /// Split-K preserves splits that are 128b aligned
-  static int const kSplitKAlignment = ::cutlass::const_max(
-	128 / ::cutlass::sizeof_bits<ElementA>::value,
-	128 / ::cutlass::sizeof_bits<ElementB>::value);
-
   //
   // Structures
   //
@@ -300,7 +295,7 @@ public:
 
   /// Executes one GEMM
   CUTLASS_DEVICE
-  void operator()(Params const &params, SharedStorage &shared_storage) {    
+  void operator()(Params const &params, SharedStorage &shared_storage) {
     // Compute threadblock location
     ThreadblockSwizzle threadblock_swizzle;
 
@@ -314,7 +309,6 @@ public:
       return;
     }
 
-    int offset_k = 0;
     int problem_size_k = params.problem_size.k();
 
     ElementA *ptr_A = static_cast<ElementA *>(params.ptr_A); 
@@ -323,36 +317,16 @@ public:
     //
     // Fetch pointers based on mode.
     //
-    if (params.mode == ::cutlass::gemm::GemmUniversalMode::kGemm || 
-      params.mode == ::cutlass::gemm::GemmUniversalMode::kGemmSplitKParallel) {
-
-      if (threadblock_tile_offset.k() + 1 < params.grid_tiled_shape.k()) {
-
-        problem_size_k = (threadblock_tile_offset.k() + 1) * params.gemm_k_size; 
-      }
-
-      offset_k = threadblock_tile_offset.k() * params.gemm_k_size;
-    }
-    else if (params.mode == ::cutlass::gemm::GemmUniversalMode::kBatched) {
-      ptr_A += threadblock_tile_offset.k() * params.batch_stride_A;
-      ptr_B += threadblock_tile_offset.k() * params.batch_stride_B;
-    }
-    else if (params.mode == ::cutlass::gemm::GemmUniversalMode::kArray) {
-      ptr_A = static_cast<ElementA * const *>(params.ptr_A)[threadblock_tile_offset.k()];
-      ptr_B = static_cast<ElementB * const *>(params.ptr_B)[threadblock_tile_offset.k()];
-    }
-
+    
     __syncthreads();
 
     // Compute initial location in logical coordinates
     ::cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      offset_k,
+      threadblock_tile_offset.m() * Mma::Shape::kM, 0
     };
 
     ::cutlass::MatrixCoord tb_offset_B{
-      offset_k,
-      threadblock_tile_offset.n() * Mma::Shape::kN
+      0, threadblock_tile_offset.n() * Mma::Shape::kN
     };
 
 
@@ -377,7 +351,6 @@ public:
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
     int warp_idx = __shfl_sync(0xffffffff, threadIdx.x / 32, 0);
-
     int lane_idx = threadIdx.x % 32;
 
     //
@@ -392,7 +365,7 @@ public:
     accumulators.clear();
 
     // Compute threadblock-scoped matrix multiply-add
-    int gemm_k_iterations = (problem_size_k - offset_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
+    int gemm_k_iterations = (problem_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
 
     // Compute threadblock-scoped matrix multiply-add
     mma(
@@ -421,41 +394,12 @@ public:
       threadblock_tile_offset.n() * Mma::Shape::kN
     );
 
-    int block_idx = threadblock_tile_offset.m() + threadblock_tile_offset.n() * params.grid_tiled_shape.m();
-
     ElementC *ptr_C = static_cast<ElementC *>(params.ptr_C); 
     ElementC *ptr_D = static_cast<ElementC *>(params.ptr_D);
 
     //
     // Fetch pointers based on mode.
     //
-    
-    // Construct the semaphore.
-    ::cutlass::Semaphore semaphore(params.semaphore + block_idx, thread_idx);
-
-    if (params.mode == ::cutlass::gemm::GemmUniversalMode::kGemm) {
-
-      // If performing a reduction via split-K, fetch the initial synchronization
-      if (params.grid_tiled_shape.k() > 1) {
-        
-        // Fetch the synchronization lock initially but do not block.
-        semaphore.fetch();
-
-        // Indicate which position in a serial reduction the output operator is currently updating
-        output_op.set_k_partition(threadblock_tile_offset.k(), params.grid_tiled_shape.k());
-      }
-    }
-    else if (params.mode == ::cutlass::gemm::GemmUniversalMode::kGemmSplitKParallel) {
-      ptr_D += threadblock_tile_offset.k() * params.batch_stride_D;
-    }
-    else if (params.mode == ::cutlass::gemm::GemmUniversalMode::kBatched) {
-      ptr_C += threadblock_tile_offset.k() * params.batch_stride_C;
-      ptr_D += threadblock_tile_offset.k() * params.batch_stride_D;
-    }
-    else if (params.mode == ::cutlass::gemm::GemmUniversalMode::kArray) {
-      ptr_C = static_cast<ElementC * const *>(params.ptr_C)[threadblock_tile_offset.k()];
-      ptr_D = static_cast<ElementC * const *>(params.ptr_D)[threadblock_tile_offset.k()];
-    }
 
     // Tile iterator loading from source tensor.
     typename Epilogue::OutputTileIterator iterator_C(
@@ -480,19 +424,6 @@ public:
       thread_idx, 
       warp_idx, 
       lane_idx);
-
-    // Wait on the semaphore - this latency may have been covered by iterator construction
-    if (params.mode == ::cutlass::gemm::GemmUniversalMode::kGemm && params.grid_tiled_shape.k() > 1) {
-        
-      // For subsequent threadblocks, the source matrix is held in the 'D' tensor.
-      if (threadblock_tile_offset.k()) {
-        iterator_C = iterator_D;
-      }
-
-      semaphore.wait(threadblock_tile_offset.k());
-
-      __threadfence();
-    }
     
     // Execute the epilogue operator to update the destination tensor.
     epilogue(
@@ -500,26 +431,6 @@ public:
       iterator_D, 
       accumulators, 
       iterator_C); 
-    
-    //
-    // Release the semaphore
-    //
-
-    if (params.mode == ::cutlass::gemm::GemmUniversalMode::kGemm && params.grid_tiled_shape.k() > 1) { 
-
-      int lock = 0;
-      if (params.grid_tiled_shape.k() == threadblock_tile_offset.k() + 1) {
-
-        // The final threadblock resets the semaphore for subsequent grids.
-        lock = 0;
-      }
-      else {
-        // Otherwise, the semaphore is incremented
-        lock = threadblock_tile_offset.k() + 1;
-      }
-      
-      semaphore.release(lock);
-    }
   }
 };
 

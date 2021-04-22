@@ -21,6 +21,9 @@ set(SPUTNIK_BDSD_TEST_SRCS)
 set(SPUTNIK_BDSD_BENCHMARK_SRCS)
 add_subdirectory(block/bdsd)
 
+# TODO(tgale): Clean up build.
+add_subdirectory(block/cutlass)
+
 set(DIR_SRCS)
 
 ##
