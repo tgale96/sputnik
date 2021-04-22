@@ -46,34 +46,32 @@ template <
     /// Operation performed by GEMM
     typename Operator>
 struct DefaultBlockGemm {
+  // TODO(tgale): These constraints are added because of the simple
+  // Mma/Epilogue definitions below. Fix this to generalize
+  // beyond Ampere and FP16.
+  static_assert(::cutlass::platform::is_same<
+		ArchTag, ::cutlass::arch::Sm80>::value);
+  static_assert(::cutlass::platform::is_same<
+		OperatorClass, ::cutlass::arch::OpClassTensorOp>::value);
+  static_assert(::cutlass::platform::is_same<
+		LayoutC, ::cutlass::layout::RowMajor>::value);
+  
+  using Mma = typename ::cutlass::gemm::threadblock::DefaultMma<
+    ElementA, LayoutA, kAlignmentA, ElementB, LayoutB, kAlignmentB,
+    ElementAccumulator, ::cutlass::layout::RowMajor,
+    ::cutlass::arch::OpClassTensorOp, ::cutlass::arch::Sm80,
+    ThreadblockShape, WarpShape, InstructionShape, Stages,
+    Operator>::ThreadblockMma;
 
-  using DefaultGemmKernel = typename ::cutlass::gemm::kernel::DefaultGemm<
-    ElementA,
-    LayoutA,
-    kAlignmentA,
-    ElementB,
-    LayoutB,
-    kAlignmentB,
-    ElementC,
-    LayoutC,
-    ElementAccumulator,
-    OperatorClass,
-    ArchTag,
-    ThreadblockShape,
-    WarpShape,
-    InstructionShape,
-    EpilogueOutputOp,
-    ThreadblockSwizzle,
-    Stages,
-    true,
-    Operator
-  >::GemmKernel;
-
-  using GemmKernel = BlockGemm<
-    typename DefaultGemmKernel::Mma,
-    typename DefaultGemmKernel::Epilogue, 
-    ThreadblockSwizzle
-  >;
+  static_assert(WarpShape::kK == ThreadblockShape::kK,
+		"Split-k not supported.");
+  
+  using Epilogue =
+    typename ::cutlass::epilogue::threadblock::DefaultEpilogueTensorOp<
+    ThreadblockShape, typename Mma::Operator, /*kPartitionsK=*/1,
+    EpilogueOutputOp, EpilogueOutputOp::kCount>::Epilogue;
+  
+  using GemmKernel = BlockGemm<Mma, Epilogue, ThreadblockSwizzle>;
 };
 
 }  // namespace cutlass
