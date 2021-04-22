@@ -94,7 +94,6 @@ public:
   /// Parameters structure
   struct Params {
 
-    // TODO(tgale): Do we need the problem size here?
     ::cutlass::gemm::GemmCoord problem_size;
     ::cutlass::gemm::GemmCoord grid_tiled_shape;
     
@@ -104,9 +103,6 @@ public:
     typename Epilogue::OutputTileIterator::Params params_D;
     
     typename EpilogueOutputOp::Params output_op;
-
-    ::cutlass::gemm::GemmUniversalMode mode;
-    int gemm_k_size;
 
     void * ptr_A;
     void * ptr_B;
@@ -123,7 +119,6 @@ public:
       params_B(0),
       params_C(0),
       params_D(0),
-      gemm_k_size(0),
       ptr_A(nullptr),
       ptr_B(nullptr),
       ptr_C(nullptr),
@@ -140,7 +135,6 @@ public:
       params_C(args.ldc),
       params_D(args.ldd),
       output_op(args.epilogue),
-      gemm_k_size(grid_tiled_shape.k()),
       ptr_A(const_cast<void *>(args.ptr_A)),
       ptr_B(const_cast<void *>(args.ptr_B)),
       ptr_C(const_cast<void *>(args.ptr_C)),
@@ -169,40 +163,21 @@ public:
   //
 
   CUTLASS_DEVICE
-  BlockGemm() { } 
+  BlockGemm() {} 
 
   /// Determines whether kernel satisfies alignment
   static ::cutlass::Status can_implement(
     ::cutlass::gemm::GemmCoord const & problem_size) {
-
-    CUTLASS_TRACE_HOST("GemmUniversal::can_implement()");
-
-    static int const kAlignmentA = (::cutlass::platform::is_same<typename Mma::IteratorA::Layout,
-                                                      ::cutlass::layout::ColumnMajorInterleaved<32>>::value)
-                                   ? 32
-                                   : (::cutlass::platform::is_same<typename Mma::IteratorA::Layout,
-                                                        ::cutlass::layout::ColumnMajorInterleaved<64>>::value)
-                                     ? 64
-                                     : Mma::IteratorA::AccessType::kElements;
-    static int const kAlignmentB = (::cutlass::platform::is_same<typename Mma::IteratorB::Layout,
-                                                       ::cutlass::layout::RowMajorInterleaved<32>>::value)
-                                   ? 32
-                                   : (::cutlass::platform::is_same<typename Mma::IteratorB::Layout,
-                                                        ::cutlass::layout::RowMajorInterleaved<64>>::value)
-                                     ? 64
-                                     : Mma::IteratorB::AccessType::kElements;
+    // NOTE: We don't support interleaved layouts.
+    static int const kAlignmentA = Mma::IteratorA::AccessType::kElements;
+    static int const kAlignmentB = Mma::IteratorB::AccessType::kElements;
     static int const kAlignmentC = Epilogue::OutputTileIterator::kElementsPerAccess;
 
     if ((problem_size.m() % kAlignmentA) || (problem_size.k() % kAlignmentA) ||
       (problem_size.n() % kAlignmentB) || (problem_size.k() % kAlignmentB) ||
       (problem_size.m() % kAlignmentC) || (problem_size.n() % kAlignmentC)) {
-
-      CUTLASS_TRACE_HOST("  returning kErrorMisalignedOperand");
       return ::cutlass::Status::kErrorMisalignedOperand;
     }
-
-    CUTLASS_TRACE_HOST("  returning kSuccess");
-
     return ::cutlass::Status::kSuccess;
   }
 
@@ -231,10 +206,7 @@ public:
     ElementA *ptr_A = static_cast<ElementA *>(params.ptr_A); 
     ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
 
-    //
-    // Fetch pointers based on mode.
-    //
-    
+    // TODO(tgale): Do we need to synchronize here?
     __syncthreads();
 
     // Compute initial location in logical coordinates

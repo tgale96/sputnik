@@ -84,8 +84,12 @@ cudaError_t hgemm_tn(
 		       /*ldc=*/N,
 		       /*ldd=*/N);
   
-  // TODO(tgale): Verify that we can implement the given problem
-  // with this kernel before launching.
+  // Verify that we can implement the given problem.
+  ::cutlass::Status status = Gemm::KernelFn::can_implement(args);
+  if (status != ::cutlass::Status::kSuccess) {
+    return cudaErrorNotSupported;
+  }
+  
   Gemm gemm_operator;
   return gemm_operator(args);
 }
@@ -107,8 +111,12 @@ cudaError_t hgemm_nt(
 		       /*ldc=*/N,
 		       /*ldd=*/N);
 
-  // TODO(tgale): Verify that we can implement the given problem
-  // with this kernel before launching.
+  // Verify that we can implement the given problem.
+  ::cutlass::Status status = Gemm::KernelFn::can_implement(args);
+  if (status != ::cutlass::Status::kSuccess) {
+    return cudaErrorNotSupported;
+  }
+  
   Gemm gemm_operator;  
   return gemm_operator(args);
 }  
