@@ -3,6 +3,7 @@
 
 #include "cutlass/gemm/kernel/default_gemm.h"
 #include "sputnik/block/cutlass/block_gemm.h"
+#include "sputnik/block/cutlass/block_mma.h"
 
 namespace sputnik {
 namespace block {
@@ -56,9 +57,9 @@ struct DefaultBlockGemm {
   static_assert(::cutlass::platform::is_same<
 		LayoutC, ::cutlass::layout::RowMajor>::value);
   
-  using Mma = typename ::cutlass::gemm::threadblock::DefaultMma<
-    ElementA, LayoutA, kAlignmentA, ElementB, LayoutB, kAlignmentB,
-    ElementAccumulator, ::cutlass::layout::RowMajor,
+  using Mma = typename BlockMma<
+    BlockSize::kNone, ElementA, LayoutA, kAlignmentA, ElementB,
+    LayoutB, kAlignmentB, ElementAccumulator, ::cutlass::layout::RowMajor,
     ::cutlass::arch::OpClassTensorOp, ::cutlass::arch::Sm80,
     ThreadblockShape, WarpShape, InstructionShape, Stages,
     Operator>::ThreadblockMma;

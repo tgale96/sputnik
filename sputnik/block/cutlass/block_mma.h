@@ -1,8 +1,15 @@
+#ifndef THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_MMA_H_
+#define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_MMA_H_
+
 #include "sputnik/block/cutlass/block_size.h"
+
+namespace sputnik {
+namespace block {
+namespace cutlass {
 
 template <
   // Block size for sparse operands.
-  int kBlockSize,
+  BlockSize kBlockSize,
   // Element type for A matrix operand
   typename ElementA,
   // Layout type for A matrix operand
@@ -72,17 +79,25 @@ template <
   typename Operator,
   // Store the accumulators in row major or column major.  Row major is used
   // when output layout is interleaved.
-  bool AccumulatorsInRowMajor = false>
+  bool AccumulatorsInRowMajor>
 struct BlockMma<BlockSize::kNone, ElementA, LayoutA, kAlignmentA, ElementB, LayoutB,
 		kAlignmentB, ElementAccumulator, LayoutC, OperatorClass,
 		ArchTag, ThreadblockShape, WarpShape, InstructionShape,
-		Stages, Operator, AccumumulatorsInRowMajor> {
+		Stages, Operator, AccumulatorsInRowMajor> {
   using Mma = ::cutlass::gemm::threadblock::DefaultMma<
     ElementA, LayoutA, kAlignmentA, ElementB, LayoutB,
     kAlignmentB, ElementAccumulator, LayoutC, OperatorClass,
     ArchTag, ThreadblockShape, WarpShape, InstructionShape,
-    Stages, Operator, AccumumulatorsInRowMajor>;
+    Stages, Operator, AccumulatorsInRowMajor>;
 
   // Define the threadblock-level mma type.
-  using ThreadblockMma = Mma::ThreadblockMma;
-}
+  using ThreadblockMma = typename Mma::ThreadblockMma;
+};
+
+
+}  // namespace cutlass
+}  // namespace block
+}  // namespace sputnik
+
+#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_MMA_H_
+  
