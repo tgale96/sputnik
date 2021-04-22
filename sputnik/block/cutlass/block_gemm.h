@@ -21,26 +21,8 @@ public:
   using ThreadblockSwizzle = ThreadblockSwizzle_;
 
   using ElementA = typename Mma::IteratorA::Element;
-  using LayoutA = typename Mma::IteratorA::Layout;
   using ElementB = typename Mma::IteratorB::Element;
-  using LayoutB = typename Mma::IteratorB::Layout;
   using ElementC = typename Epilogue::OutputTileIterator::Element;
-  using LayoutC = typename Epilogue::OutputTileIterator::Layout;
-
-  static ::cutlass::ComplexTransform const kTransformA = Mma::kTransformA;
-  static ::cutlass::ComplexTransform const kTransformB = Mma::kTransformB;
-  using Operator = typename Mma::Operator;
-
-  using OperatorClass = typename Mma::Operator::OperatorClass;
-  using ThreadblockShape = typename Mma::Shape;
-  using WarpShape = typename Mma::Operator::Shape;
-  using InstructionShape = typename Mma::Policy::Operator::InstructionShape;
-  using ArchTag = typename Mma::ArchTag;
-
-  static int const kStages = Mma::kStages;
-  static int const kAlignmentA = Mma::IteratorA::AccessType::kElements;
-  static int const kAlignmentB = Mma::IteratorB::AccessType::kElements;
-  static int const kAlignmentC = Epilogue::OutputTileIterator::kElementsPerAccess;
 
   /// Warp count (concept: GemmShape)
   using WarpCount = typename Mma::WarpCount;
@@ -57,21 +39,13 @@ public:
     // Data members
     //
 
-    ::cutlass::gemm::GemmUniversalMode mode;
     ::cutlass::gemm::GemmCoord problem_size;
-    int batch_count;
-
     typename EpilogueOutputOp::Params epilogue;
 
     void const * ptr_A;
     void const * ptr_B;
     void const * ptr_C;
     void * ptr_D;
-
-    int64_t batch_stride_A;
-    int64_t batch_stride_B;
-    int64_t batch_stride_C;
-    int64_t batch_stride_D;
 
     int lda;
     int ldb;
@@ -83,49 +57,32 @@ public:
     //
 
     Arguments(): 
-      mode(::cutlass::gemm::GemmUniversalMode::kGemm), 
-      batch_count(1), 
       ptr_A(nullptr), ptr_B(nullptr), ptr_C(nullptr), ptr_D(nullptr) { }
 
     /// constructs an arguments structure
     Arguments(
-      ::cutlass::gemm::GemmUniversalMode mode,
       ::cutlass::gemm::GemmCoord problem_size,
-      int batch_count,
       typename EpilogueOutputOp::Params epilogue,
       void const * ptr_A,
       void const * ptr_B,
       void const * ptr_C,
       void * ptr_D,
-      int64_t batch_stride_A,
-      int64_t batch_stride_B,
-      int64_t batch_stride_C,
-      int64_t batch_stride_D,
       int lda,
       int ldb,
       int ldc,
       int ldd
     ):
-      mode(mode), 
       problem_size(problem_size), 
-      batch_count(batch_count),
       epilogue(epilogue), 
       ptr_A(ptr_A), ptr_B(ptr_B), ptr_C(ptr_C), ptr_D(ptr_D), 
-      batch_stride_A(batch_stride_A), batch_stride_B(batch_stride_B), batch_stride_C(batch_stride_C), batch_stride_D(batch_stride_D), 
-      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {
-
-      CUTLASS_TRACE_HOST("GemmUniversal::Arguments::Arguments() - problem_size: " << problem_size);
-      }
+      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {}
 
     /// Returns arguments for the transposed problem
     Arguments transposed_problem() const {
       Arguments args(*this);
-      
       std::swap(args.problem_size.m(), args.problem_size.n());
       std::swap(args.ptr_A, args.ptr_B);
       std::swap(args.lda, args.ldb);
-      std::swap(args.batch_stride_A, args.batch_stride_B);
-
       return args;
     }
   };
@@ -137,6 +94,7 @@ public:
   /// Parameters structure
   struct Params {
 
+    // TODO(tgale): Do we need the problem size here?
     ::cutlass::gemm::GemmCoord problem_size;
     ::cutlass::gemm::GemmCoord grid_tiled_shape;
     
@@ -148,20 +106,12 @@ public:
     typename EpilogueOutputOp::Params output_op;
 
     ::cutlass::gemm::GemmUniversalMode mode;
-    int batch_count;
     int gemm_k_size;
 
     void * ptr_A;
     void * ptr_B;
     void * ptr_C;
     void * ptr_D;
-
-    int64_t batch_stride_A;
-    int64_t batch_stride_B;
-    int64_t batch_stride_C;
-    int64_t batch_stride_D;
-
-    int *semaphore;
 
     //
     // Methods
@@ -173,25 +123,16 @@ public:
       params_B(0),
       params_C(0),
       params_D(0),
-      batch_count(0),
       gemm_k_size(0),
-      mode(::cutlass::gemm::GemmUniversalMode::kGemm),
       ptr_A(nullptr),
       ptr_B(nullptr),
       ptr_C(nullptr),
-      ptr_D(nullptr),
-      batch_stride_A(0),
-      batch_stride_B(0),
-      batch_stride_C(0),
-      batch_stride_D(0),
-      semaphore(nullptr) { }
+      ptr_D(nullptr) {}
 
     CUTLASS_HOST_DEVICE
     Params(
       Arguments const &args,
-      ::cutlass::gemm::GemmCoord const & grid_tiled_shape,
-      void *workspace = nullptr
-    ):
+      ::cutlass::gemm::GemmCoord const & grid_tiled_shape):
       problem_size(args.problem_size),
       grid_tiled_shape(grid_tiled_shape),
       params_A(args.lda),
@@ -199,42 +140,19 @@ public:
       params_C(args.ldc),
       params_D(args.ldd),
       output_op(args.epilogue),
-      mode(args.mode),
-      batch_count(args.batch_count),
       gemm_k_size(grid_tiled_shape.k()),
       ptr_A(const_cast<void *>(args.ptr_A)),
       ptr_B(const_cast<void *>(args.ptr_B)),
       ptr_C(const_cast<void *>(args.ptr_C)),
-      ptr_D(args.ptr_D),
-      batch_stride_A(args.batch_stride_A),
-      batch_stride_B(args.batch_stride_B),
-      batch_stride_C(args.batch_stride_C),
-      batch_stride_D(args.batch_stride_D),
-      semaphore(static_cast<int *>(workspace)) {
-
-      CUTLASS_TRACE_HOST("GemmUniversal::Params::Params() - problem_size: " << problem_size);
-    }
+      ptr_D(args.ptr_D) {}
 
     CUTLASS_HOST_DEVICE
-    void update(
-      Arguments const &args,
-      void *workspace = nullptr) {
-
+    void update(Arguments const &args) {
       ptr_A = const_cast<void *>(args.ptr_A);
       ptr_B = const_cast<void *>(args.ptr_B);
       ptr_C = const_cast<void *>(args.ptr_C);
       ptr_D = args.ptr_D;
-
-      batch_stride_A = args.batch_stride_A;
-      batch_stride_B = args.batch_stride_B;
-      batch_stride_C = args.batch_stride_C;
-      batch_stride_D = args.batch_stride_D;
-
       output_op = args.epilogue;
-
-      semaphore = static_cast<int *>(workspace);
-
-      CUTLASS_TRACE_HOST("GemmUniversal::Params::update()");
     }
   };
 

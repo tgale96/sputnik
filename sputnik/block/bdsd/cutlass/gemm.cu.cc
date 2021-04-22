@@ -76,12 +76,9 @@ cudaError_t hgemm_tn(
   half *C) {
   using Gemm = Kernel<gemm_mixed_256x128_32x3_nt_align8>;
 
-  Gemm::Arguments args(::cutlass::gemm::GemmUniversalMode::kGemm,
-		       {M, N, K},
-		       /*batch_count=*/1,
-		       {(::cutlass::half_t)1.0f, (::cutlass::half_t)0.0f},
+  Gemm::Arguments args({M, N, K},
+		       {1.0f, 0.0f},
 		       A, B, C, C,
-		       0, 0, 0, 0,
 		       /*lda=*/M,
 		       /*ldb=*/N,
 		       /*ldc=*/N,
@@ -102,12 +99,9 @@ cudaError_t hgemm_nt(
   half *C) {
   using Gemm = Kernel<gemm_mixed_128x256_32x3_tn_align8>;
 
-  Gemm::Arguments args(::cutlass::gemm::GemmUniversalMode::kGemm,
-		       {M, N, K},
-		       /*batch_count=*/1,
-		       {(::cutlass::half_t)1.0f, (::cutlass::half_t)0.0f},
+  Gemm::Arguments args({M, N, K},
+		       {1.0f, 0.0f},
 		       A, B, C, C,
-		       0, 0, 0, 0,
 		       /*lda=*/K,
 		       /*ldb=*/K,
 		       /*ldc=*/N,
