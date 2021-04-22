@@ -190,7 +190,6 @@ public:
     Params(
       Arguments const &args,
       ::cutlass::gemm::GemmCoord const & grid_tiled_shape,
-      int gemm_k_size,
       void *workspace = nullptr
     ):
       problem_size(args.problem_size),
@@ -202,7 +201,7 @@ public:
       output_op(args.epilogue),
       mode(args.mode),
       batch_count(args.batch_count),
-      gemm_k_size(gemm_k_size),
+      gemm_k_size(grid_tiled_shape.k()),
       ptr_A(const_cast<void *>(args.ptr_A)),
       ptr_B(const_cast<void *>(args.ptr_B)),
       ptr_C(const_cast<void *>(args.ptr_C)),

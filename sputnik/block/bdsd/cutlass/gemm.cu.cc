@@ -1,5 +1,6 @@
 #include "sputnik/block/bdsd/cutlass/cuda_bdsd.h"
 #include "sputnik/block/cutlass/default_block_gemm.h"
+#include "sputnik/block/cutlass/kernel.h"
 
 #include "cutlass/cutlass.h"
 #include "cutlass/gemm/device/gemm.h"
@@ -123,8 +124,7 @@ cudaError_t hgemm_nt(
   half const *A,
   half const *B,
   half *C) {
-  using Gemm = ::cutlass::gemm::device::GemmUniversalAdapter<
-    gemm_mixed_128x256_32x3_tn_align8>;
+  using Gemm = Kernel<gemm_mixed_128x256_32x3_tn_align8>;
 
   Gemm::Arguments args(::cutlass::gemm::GemmUniversalMode::kGemm,
 		       {M, N, K},
@@ -136,26 +136,12 @@ cudaError_t hgemm_nt(
 		       /*ldb=*/K,
 		       /*ldc=*/N,
 		       /*ldd=*/N);
-  args = args.transposed_problem();
-  
-  //
-  /// Launch the kernel.
-  //
-  
-  Gemm gemm_operator;
+  // args = args.transposed_problem();
 
-  ::cutlass::Status status = gemm_operator.can_implement(args);
-  if (status != ::cutlass::Status::kSuccess) {
-    return cudaErrorUnknown;
-  }
-  
-  status = gemm_operator(args);
-
-  // TODO(tgale): Can we return more informative errors here?
-  if (status != ::cutlass::Status::kSuccess) {
-    return cudaErrorUnknown;
-  }
-  return cudaSuccess;
+  // TODO(tgale): Verify that we can implement the given problem
+  // with this kernel before launching.
+  Gemm gemm_operator;  
+  return gemm_operator(args);
 }  
 
 }  // namespace cutlass
