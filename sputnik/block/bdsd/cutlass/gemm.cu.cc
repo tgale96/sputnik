@@ -2,11 +2,6 @@
 #include "sputnik/block/cutlass/default_block_gemm.h"
 #include "sputnik/block/cutlass/kernel.h"
 
-#include "cutlass/cutlass.h"
-#include "cutlass/gemm/device/gemm.h"
-#include "cutlass/gemm/device/gemm_universal.h"
-#include "cutlass/gemm/device/gemm_universal_adapter.h"
-
 namespace sputnik {
 namespace block {
 namespace cutlass {
@@ -14,16 +9,14 @@ namespace cutlass {
 namespace {
 
 using gemm_mixed_256x128_32x3_nt_align8_base = 
-  typename ::cutlass::gemm::kernel::DefaultGemmUniversal<
+  typename DefaultBlockGemm<
   // Non-transposed B operand.
   ::cutlass::half_t,
   ::cutlass::layout::ColumnMajor,
-  ::cutlass::ComplexTransform::kNone,
   8,
   // Transposed A operand.
   ::cutlass::half_t,
   ::cutlass::layout::RowMajor,
-  ::cutlass::ComplexTransform::kNone,
   8,
   // C operand.
   ::cutlass::half_t,
@@ -74,7 +67,6 @@ struct gemm_mixed_128x256_32x3_tn_align8 :
   
 }  // namespace
 
-  
 cudaError_t hgemm_tn(
   int M,
   int N,
@@ -82,8 +74,7 @@ cudaError_t hgemm_tn(
   half const *A,
   half const *B,
   half *C) {
-  using Gemm = ::cutlass::gemm::device::GemmUniversalAdapter<
-    gemm_mixed_256x128_32x3_nt_align8>;
+  using Gemm = Kernel<gemm_mixed_256x128_32x3_nt_align8>;
 
   Gemm::Arguments args(::cutlass::gemm::GemmUniversalMode::kGemm,
 		       {M, N, K},
@@ -95,26 +86,11 @@ cudaError_t hgemm_tn(
 		       /*ldb=*/N,
 		       /*ldc=*/N,
 		       /*ldd=*/N);
-  args = args.transposed_problem();
   
-  //
-  /// Launch the kernel.
-  //
-  
+  // TODO(tgale): Verify that we can implement the given problem
+  // with this kernel before launching.
   Gemm gemm_operator;
-
-  ::cutlass::Status status = gemm_operator.can_implement(args);
-  if (status != ::cutlass::Status::kSuccess) {
-    return cudaErrorUnknown;
-  }
-  
-  status = gemm_operator(args);
-
-  // TODO(tgale): Can we return more informative errors here?
-  if (status != ::cutlass::Status::kSuccess) {
-    return cudaErrorUnknown;
-  }
-  return cudaSuccess;
+  return gemm_operator(args);
 }
 
 cudaError_t hgemm_nt(
@@ -136,7 +112,6 @@ cudaError_t hgemm_nt(
 		       /*ldb=*/K,
 		       /*ldc=*/N,
 		       /*ldd=*/N);
-  // args = args.transposed_problem();
 
   // TODO(tgale): Verify that we can implement the given problem
   // with this kernel before launching.
