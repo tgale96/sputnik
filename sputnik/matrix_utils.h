@@ -327,6 +327,9 @@ class Matrix {
    */
   Matrix(int rows, int columns, absl::BitGen* generator);
 
+  // Zero initialized.
+  Matrix(int rows, int columns);
+  
   Matrix(const Matrix& other);
 
   /**
@@ -351,7 +354,6 @@ class Matrix {
   float& operator()(int row, int column);
 
  private:
-  Matrix(int rows, int columns);
 
   // Matrix value storage.
   std::unique_ptr<float[]> values_;

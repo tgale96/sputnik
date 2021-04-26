@@ -10,42 +10,44 @@ namespace block {
 namespace cutlass {
   
 template <
-    /// Element type for A matrix operand
-    typename ElementA,
-    /// Layout type for A matrix operand
-    typename LayoutA,
-    /// Access granularity of A matrix in units of elements
-    int kAlignmentA,
-    /// Element type for B matrix operand
-    typename ElementB,
-    /// Layout type for B matrix operand
-    typename LayoutB,
-    /// Access granularity of B matrix in units of elements
-    int kAlignmentB,
-    /// Element type for C and D matrix operands
-    typename ElementC,
-    /// Layout type for C and D matrix operands
-    typename LayoutC,
-    /// Element type for internal accumulation
-    typename ElementAccumulator,
-    /// Operator class tag
-    typename OperatorClass,
-    /// Tag indicating architecture to tune for
-    typename ArchTag,
-    /// Threadblock-level tile size (concept: GemmShape)
-    typename ThreadblockShape,
-    /// Warp-level tile size (concept: GemmShape)
-    typename WarpShape,
-    /// Warp-level tile size (concept: GemmShape)
-    typename InstructionShape,
-    /// Epilogue output operator
-    typename EpilogueOutputOp,
-    /// Threadblock-level swizzling operator
-    typename ThreadblockSwizzle,
-    /// Number of stages used in the pipelined mainloop
-    int Stages,
-    /// Operation performed by GEMM
-    typename Operator>
+  // Block size for sparse operands.
+  BlockSize kBlockSize,
+  // Element type for A matrix operand
+  typename ElementA,
+  // Layout type for A matrix operand
+  typename LayoutA,
+  // Access granularity of A matrix in units of elements
+  int kAlignmentA,
+  // Element type for B matrix operand
+  typename ElementB,
+  // Layout type for B matrix operand
+  typename LayoutB,
+  // Access granularity of B matrix in units of elements
+  int kAlignmentB,
+  // Element type for C and D matrix operands
+  typename ElementC,
+  // Layout type for C and D matrix operands
+  typename LayoutC,
+  // Element type for internal accumulation
+  typename ElementAccumulator,
+  // Operator class tag
+  typename OperatorClass,
+  // Tag indicating architecture to tune for
+  typename ArchTag,
+  // Threadblock-level tile size (concept: GemmShape)
+  typename ThreadblockShape,
+  // Warp-level tile size (concept: GemmShape)
+  typename WarpShape,
+  // Warp-level tile size (concept: GemmShape)
+  typename InstructionShape,
+  // Epilogue output operator
+  typename EpilogueOutputOp,
+  // Threadblock-level swizzling operator
+  typename ThreadblockSwizzle,
+  // Number of stages used in the pipelined mainloop
+  int Stages,
+  // Operation performed by GEMM
+  typename Operator>
 struct DefaultBlockGemm {
   // TODO(tgale): These constraints are added because of the simple
   // Mma/Epilogue definitions below. Fix this to generalize
@@ -58,7 +60,7 @@ struct DefaultBlockGemm {
 		LayoutC, ::cutlass::layout::RowMajor>::value);
   
   using Mma = typename BlockMma<
-    BlockSize::kNone, ElementA, LayoutA, kAlignmentA, ElementB,
+    kBlockSize, ElementA, LayoutA, kAlignmentA, ElementB,
     LayoutB, kAlignmentB, ElementAccumulator, ::cutlass::layout::RowMajor,
     ::cutlass::arch::OpClassTensorOp, ::cutlass::arch::Sm80,
     ThreadblockShape, WarpShape, InstructionShape, Stages,

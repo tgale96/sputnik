@@ -22,7 +22,15 @@ cudaError_t hgemm_nt(
   half const *A,
   half const *B,
   half *C);
-    
+
+cudaError_t dsd_nt(
+  int M,
+  int N,
+  int K,
+  half const *A,
+  half const *B,
+  half *C);
+ 
 }  // namespace cutlass
 }  // namespace block
 }  // namespace sputnik

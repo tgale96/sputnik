@@ -10,6 +10,7 @@ namespace {
 
 using gemm_mixed_256x128_32x3_nt_align8_base = 
   typename DefaultBlockGemm<
+  BlockSize::kNone,
   // Non-transposed B operand.
   ::cutlass::half_t,
   ::cutlass::layout::ColumnMajor,
@@ -38,6 +39,7 @@ struct gemm_mixed_256x128_32x3_nt_align8 :
 
 using gemm_mixed_128x256_32x3_tn_align8_base = 
   typename DefaultBlockGemm<
+  BlockSize::kNone,  
   // Transposed B operand.
   ::cutlass::half_t,
   ::cutlass::layout::RowMajor,

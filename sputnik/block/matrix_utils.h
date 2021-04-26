@@ -73,6 +73,40 @@ inline std::vector<float> ToVector(const BlockSparseMatrix& sparse_matrix) {
   return out;
 }
 
+inline Matrix ToMatrix(const BlockSparseMatrix &x) {
+  size_t n = x.Rows() * x.Columns();
+  std::vector<float> out(n, 0);
+  
+  const int* ro = x.RowOffsets();
+  const int* co = x.ColumnIndices();
+  
+  int bd = x.BlockDim();
+  int rows = x.Rows();
+  int cols = x.Columns();
+  int brows = rows / bd;
+  for (int i = 0; i < brows; ++i) {
+    for (int l = ro[i]; l < ro[i + 1]; l += bd * bd) {
+      int idx_offset = l / (bd * bd);
+      int j = co[idx_offset];
+
+      for (int br = 0; br < bd; ++br) {
+	for (int bc = 0; bc < bd; ++bc) {
+	  float v = x.Values()[l + br * bd + bc];
+
+	  int row_idx = i * bd + br;
+	  int col_idx = j + bc;
+	  out[row_idx * cols + col_idx] = v;
+	}
+      }
+      
+    }
+  }
+
+  Matrix ret(rows, cols);
+  std::memcpy(ret.Values(), out.data(), n*sizeof(float));
+  return ret;
+}
+ 
 }  // namespace sputnik
 
 #endif  // THIRD_PARTY_SPUTNIK_BLOCK_MATRIX_UTILS_H_

@@ -595,7 +595,9 @@ void CudaSparseMatrix<Value>::InitFromSparseMatrix(
 Matrix::Matrix(int rows, int columns)
     : values_(std::make_unique<float[]>(rows * columns)),
       rows_(rows),
-      columns_(columns) {}
+      columns_(columns) {
+  std::memset(values_.get(), 0, rows*columns*sizeof(float));
+}
 
 Matrix::Matrix(int rows, int columns, absl::BitGen *generator)
     : Matrix(rows, columns) {

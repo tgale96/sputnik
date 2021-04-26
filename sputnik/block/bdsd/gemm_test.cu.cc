@@ -57,10 +57,11 @@ class GemmTest : public ::testing::Test {
 };
 
 typedef ::testing::Types<
-  Problem<8, 8, 8>,
-  Problem<16, 8, 8>,
-  Problem<8, 16, 8>,
-  Problem<32, 64, 128>,
+  // Problem<8, 8, 8>,
+  // Problem<16, 8, 8>,
+  // Problem<8, 16, 8>,
+  // Problem<32, 64, 128>,
+  Problem<128, 128, 8>,
   Problem<128, 512, 64>,
   Problem<512, 512, 1024>
   > TestProblems;
@@ -127,7 +128,7 @@ TYPED_TEST(GemmTest, GemmNT) {
   CUDA_CALL(cudaStreamSynchronize(nullptr));
   CUDA_CALL(cudaDeviceSynchronize());
 
-  // Note the transposed LHS matrix.
+  // Note the transposed RHS matrix.
   this->Gemm(this->kDimM,
 	     this->kDimN,
 	     this->kDimK,	     
@@ -140,6 +141,54 @@ TYPED_TEST(GemmTest, GemmNT) {
   auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
   ASSERT_THAT(ToVector(results), comparator);
 }
+
+TYPED_TEST(GemmTest, DsdNT) {
+  // Create the sparse matrix on cpu & gpu.
+  BlockSparseMatrix lhs_(
+      this->kDimM, this->kDimK,
+      this->kDimM * this->kDimK,
+      128, RANDOM_UNIFORM,
+      &this->generator_,
+      /*pad_rows_to=*/1);  
+  Matrix lhs = ToMatrix(lhs_);
+  CudaBlockSparseMatrix<half> lhs_gpu(lhs_);
+
+  for (int i = 0; i < 128*128; ++i) {
+    float diff = lhs.Values()[i] - lhs_.Values()[i];
+    ASSERT_EQ(diff, 0);
+  }
+  
+  // Create the dense matrix on cpu & gpu
+  Matrix rhs(this->kDimN, this->kDimK, &this->generator_);
+  CudaMatrix<half> rhs_gpu(rhs);
+
+  // Create the output matrix on gpu & gpu.
+  Matrix out(this->kDimM, this->kDimN, &this->generator_);
+  CudaMatrix<half> out_gpu(out);
+  
+  // Run the gpu kernel.
+  CUDA_CALL(cutlass::dsd_nt(this->kDimM,
+			    this->kDimN,
+			    this->kDimK,
+			    lhs_gpu.Values(),
+			    rhs_gpu.Values(),
+			    out_gpu.Values()));
+  CUDA_CALL(cudaStreamSynchronize(nullptr));
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  // Note the transposed RHS matrix.
+  this->Gemm(this->kDimM,
+	     this->kDimN,
+	     this->kDimK,	     
+	     lhs.Values(),
+	     rhs.T().Values(),
+	     out.Values());
+  
+  // Verify the results.
+  Matrix results(out_gpu);  
+  auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
+  ASSERT_THAT(ToVector(results), comparator);
+}  
   
 }  // namespace block
 }  // namespace sputnik

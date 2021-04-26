@@ -13,6 +13,34 @@ enum class BlockSize {
   k128 = 128,
 };
 
+template <BlockSize kBlockSize>
+struct Block2Int;
+
+template <>
+struct Block2Int<BlockSize::kNone> {
+  static const int value = 0;
+};
+  
+template <>
+struct Block2Int<BlockSize::k16> {
+  static const int value = 16;
+};
+  
+template <>
+struct Block2Int<BlockSize::k32> {
+  static const int value = 32;
+};
+
+template <>
+struct Block2Int<BlockSize::k64> {
+  static const int value = 64;
+};
+
+template <>
+struct Block2Int<BlockSize::k128> {
+  static const int value = 128;
+};       
+
 }  // namespace cutlass
 }  // namespace block
 }  // namespace sputnik 
