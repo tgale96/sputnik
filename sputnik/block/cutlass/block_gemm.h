@@ -96,6 +96,9 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
     int *offset_ptr_a = (int*)params_.op_A.offsets;
     int block_row_idx = threadblock_tile_offset.m();    
     offset_a = __ldg(offset_ptr_a + block_row_idx);
+
+    // In scalar elements. Divide by the block size to get
+    // the number of columns to process.
     nnz_a = __ldg(offset_ptr_a + block_row_idx + 1) - offset_a;
   }
   
@@ -124,7 +127,8 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 			    
   CUTLASS_DEVICE
   int StepsK() const {
-    return (nnz_a + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
+    int nnz_cols_a = nnz_a / Gemm::Mma::IteratorA::Shape::kBlock;    
+    return (nnz_cols_a + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
   }  
 };  
   
@@ -454,7 +458,7 @@ public:
     accumulators.clear();
 
     // Compute threadblock-scoped matrix multiply-add
-    int gemm_k_iterations = (problem_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
+    int gemm_k_iterations = config.StepsK();
 
     // Compute threadblock-scoped matrix multiply-add
     mma(
