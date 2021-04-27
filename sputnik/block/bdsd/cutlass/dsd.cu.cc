@@ -48,13 +48,16 @@ cudaError_t dsd_nt(
   int N,
   int K,
   half const *A,
+  int const *offsets_A,
+  int16_t const *indices_A,
   half const *B,
   half *C) {
   using Dsd = Kernel<dsd_mixed_128x256_32x3_tn_align8>;
 
   Dsd::Arguments args({M, N, K},
 		      {1.0f, 0.0f},
-		      A, B, C, C,
+		      {A, offsets_A, indices_A},
+		      B, C, C,
 		      /*lda=*/K,
 		      /*ldb=*/K,
 		      /*ldc=*/N,

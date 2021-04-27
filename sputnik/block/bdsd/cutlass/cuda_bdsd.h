@@ -28,6 +28,8 @@ cudaError_t dsd_nt(
   int N,
   int K,
   half const *A,
+  int const *offsets_A,
+  int16_t const *indices_A,  
   half const *B,
   half *C);
  

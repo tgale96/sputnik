@@ -80,8 +80,7 @@ BlockSparseMatrix::BlockSparseMatrix(
   for (int64_t i = 0; i < kNumValues; ++i) {
     values_[i] = absl::Uniform<float>(*generator, -1, 1);
   }
-
-
+  
   // Update the meta-data to take blocking into account.
   for (int i = 0; i < num_elements_with_padding_; ++i) {
     column_indices_[i] *= block_dim;

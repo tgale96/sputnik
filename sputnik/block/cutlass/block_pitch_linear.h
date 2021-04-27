@@ -2,6 +2,7 @@
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_PITCH_LINEAR_H_
 
 #include "cutlass/coord.h"
+#include "cutlass/matrix_coord.h"
 #include "cutlass/layout/pitch_linear.h"
 
 namespace sputnik {
@@ -23,10 +24,6 @@ struct BlockPitchLinearShape {
   static int const kCount = Contiguous * Strided;
 };
 
-// Useful to switch on in specializations.
-class BlockRowMajor {};
-class BlockColumnMajor {};
- 
 // Layout for block-sparse pitch-linear memory.
 class BlockPitchLinear {
 public:
@@ -51,9 +48,6 @@ public:
   using Stride = ::cutlass::Coord<kStrideRank, Index>;
 
   // Coordinate into a block.
-  //
-  // TODO(tgale): Use PitchLinearCoord here and fix .at
-  // below.
   using TensorCoord = ::cutlass::layout::PitchLinearCoord;
   
   //
@@ -98,6 +92,27 @@ private:
   Stride stride_;
 };
 
+// Useful to switch on in specializations.
+struct BlockRowMajor {
+
+  using TensorCoord = BlockPitchLinear::TensorCoord;
+
+  CUTLASS_HOST_DEVICE
+  static TensorCoord to_pitch_linear(const ::cutlass::MatrixCoord &coord) {
+    return {coord.column(), coord.row()};    
+  }
+};
+
+
+struct BlockColumnMajor {
+  using TensorCoord = BlockPitchLinear::TensorCoord;
+
+  CUTLASS_HOST_DEVICE
+  static TensorCoord to_pitch_linear(const ::cutlass::MatrixCoord &coord) {
+    return {coord.row(), coord.column()};    
+  }
+};
+  
 }  // namespace cutlass
 }  // namespace block
 }  // namespace sputnik

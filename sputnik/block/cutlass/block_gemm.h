@@ -1,11 +1,89 @@
 #ifndef THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_GEMM_H_
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_GEMM_H_
 
+#include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "cutlass/gemm/kernel/gemm_universal.h"
 
 namespace sputnik {
 namespace block {
 namespace cutlass {
+
+// Forward declare for Filter.
+template <
+  typename Mma_,
+  typename Epilogue_,
+  typename ThreadblockSwizzle_>
+struct BlockGemm;
+  
+template <
+  typename Arguments,
+  typename LayoutA,
+  typename LayoutB>
+struct FilterHelper {
+
+  using RetA = int;
+  using RetB = int;
+
+  CUTLASS_HOST_DEVICE
+  static RetA ParamsA(Arguments args) {
+    return args.lda;
+  }
+
+  CUTLASS_HOST_DEVICE
+  static RetB ParamsB(Arguments args) {
+    return args.ldb;
+  }
+};
+
+// TODO(tgale): Augment this to pass all information about a
+// matrix into the params.
+template <
+  typename Arguments,
+  typename LayoutB>
+struct FilterHelper<Arguments, BlockPitchLinear, LayoutB> {
+
+  using RetA = void *;
+  using RetB = int;
+
+  CUTLASS_HOST_DEVICE
+  static RetA ParamsA(Arguments args) {
+    return args.op_A.offsets;
+  }
+
+  CUTLASS_HOST_DEVICE
+  static RetB ParamsB(Arguments args) {
+    return args.ldb;
+  }
+};  
+  
+// Helper to handle mixes of sparse and dense arguments.
+template <typename Mma_, typename Epilogue_, typename ThreadblockSwizzle_>
+struct Filter {
+
+  using Gemm = BlockGemm<Mma_, Epilogue_, ThreadblockSwizzle_>;
+
+  using Arguments = typename Gemm::Arguments;
+  using LayoutA = typename Gemm::Mma::IteratorA::Layout;
+  using ElementA = typename Gemm::Mma::IteratorA::Element;
+  using LayoutB = typename Gemm::Mma::IteratorB::Layout;
+  using ElementB = typename Gemm::Mma::IteratorB::Element;
+
+  using Helper = FilterHelper<Arguments, LayoutA, LayoutB>;
+  
+  // Default config - no blocksparse arguments.
+
+  CUTLASS_HOST_DEVICE
+  static typename Helper::RetA ParamsA(Arguments args) {
+    return Helper::ParamsA(args);
+  }
+
+  CUTLASS_HOST_DEVICE
+  static typename Helper::RetB ParamsB(Arguments args) {
+    return Helper::ParamsB(args);
+  }  
+};
+
+// Gemm class.
   
 template <
   typename Mma_,                  ///! Threadblock-scoped matrix multiply-accumulate 
@@ -24,17 +102,36 @@ public:
   using ElementB = typename Mma::IteratorB::Element;
   using ElementC = typename Epilogue::OutputTileIterator::Element;
 
-  /// Warp count (concept: GemmShape)
+  // Warp count (concept: GemmShape)
   using WarpCount = typename Mma::WarpCount;
   static int const kThreadCount = 32 * WarpCount::kCount;
 
+  using ArgFilter = Filter<Mma, Epilogue, ThreadblockSwizzle>;
+  
   //
   // Structures
   //
 
+  // Operand structure.
+  struct Op {
+    void * data;
+    void * offsets;
+    void * indices;
+
+    CUTLASS_HOST_DEVICE
+    Op(void const *data_, void const *offsets_, void const *indices_) :
+      data(const_cast<void*>(data_)),
+      offsets(const_cast<void*>(offsets_)),
+      indices(const_cast<void*>(indices_)) {}
+
+    CUTLASS_HOST_DEVICE
+    Op(void const *data_) :
+      data(const_cast<void*>(data_)), offsets(nullptr), indices(nullptr) {}
+  };
+  
   /// Argument structure
   struct Arguments {
-
+      
     //
     // Data members
     //
@@ -42,10 +139,10 @@ public:
     ::cutlass::gemm::GemmCoord problem_size;
     typename EpilogueOutputOp::Params epilogue;
 
-    void const * ptr_A;
-    void const * ptr_B;
-    void const * ptr_C;
-    void * ptr_D;
+    Op op_A;
+    Op op_B;
+    Op op_C;
+    Op op_D;
 
     int lda;
     int ldb;
@@ -57,9 +154,26 @@ public:
     //
 
     Arguments(): 
-      ptr_A(nullptr), ptr_B(nullptr), ptr_C(nullptr), ptr_D(nullptr) { }
+      op_A(nullptr), op_B(nullptr), op_C(nullptr), op_D(nullptr) { }
 
     /// constructs an arguments structure
+    Arguments(
+      ::cutlass::gemm::GemmCoord problem_size,
+      typename EpilogueOutputOp::Params epilogue,
+      Op op_A,
+      Op op_B,
+      Op op_C,
+      Op op_D,
+      int lda,
+      int ldb,
+      int ldc,
+      int ldd
+    ):
+      problem_size(problem_size), 
+      epilogue(epilogue), 
+      op_A(op_A), op_B(op_B), op_C(op_C), op_D(op_D), 
+      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {}
+
     Arguments(
       ::cutlass::gemm::GemmCoord problem_size,
       typename EpilogueOutputOp::Params epilogue,
@@ -74,14 +188,14 @@ public:
     ):
       problem_size(problem_size), 
       epilogue(epilogue), 
-      ptr_A(ptr_A), ptr_B(ptr_B), ptr_C(ptr_C), ptr_D(ptr_D), 
-      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {}
+      op_A(ptr_A), op_B(ptr_B), op_C(ptr_C), op_D(ptr_D), 
+      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {}    
 
     /// Returns arguments for the transposed problem
     Arguments transposed_problem() const {
       Arguments args(*this);
       std::swap(args.problem_size.m(), args.problem_size.n());
-      std::swap(args.ptr_A, args.ptr_B);
+      std::swap(args.op_A, args.op_B);
       std::swap(args.lda, args.ldb);
       return args;
     }
@@ -104,10 +218,10 @@ public:
     
     typename EpilogueOutputOp::Params output_op;
 
-    void * ptr_A;
-    void * ptr_B;
-    void * ptr_C;
-    void * ptr_D;
+    Op op_A;
+    Op op_B;
+    Op op_C;
+    Op op_D;
 
     //
     // Methods
@@ -115,14 +229,12 @@ public:
 
     CUTLASS_HOST_DEVICE
     Params():
-      params_A(0),
-      params_B(0),
       params_C(0),
       params_D(0),
-      ptr_A(nullptr),
-      ptr_B(nullptr),
-      ptr_C(nullptr),
-      ptr_D(nullptr) {}
+      op_A(nullptr),
+      op_B(nullptr),
+      op_C(nullptr),
+      op_D(nullptr) {}
 
     CUTLASS_HOST_DEVICE
     Params(
@@ -130,22 +242,22 @@ public:
       ::cutlass::gemm::GemmCoord const & grid_tiled_shape):
       problem_size(args.problem_size),
       grid_tiled_shape(grid_tiled_shape),
-      params_A(args.lda),
-      params_B(args.ldb),
+      params_A(ArgFilter::ParamsA(args)),
+      params_B(ArgFilter::ParamsB(args)),
       params_C(args.ldc),
       params_D(args.ldd),
       output_op(args.epilogue),
-      ptr_A(const_cast<void *>(args.ptr_A)),
-      ptr_B(const_cast<void *>(args.ptr_B)),
-      ptr_C(const_cast<void *>(args.ptr_C)),
-      ptr_D(args.ptr_D) {}
+      op_A(args.op_A),
+      op_B(args.op_B),
+      op_C(args.op_C),
+      op_D(args.op_D) {}
 
     CUTLASS_HOST_DEVICE
     void update(Arguments const &args) {
-      ptr_A = const_cast<void *>(args.ptr_A);
-      ptr_B = const_cast<void *>(args.ptr_B);
-      ptr_C = const_cast<void *>(args.ptr_C);
-      ptr_D = args.ptr_D;
+      op_A = args.op_A;
+      op_B = args.op_B;
+      op_C = args.op_C;
+      op_D = args.op_D;
       output_op = args.epilogue;
     }
   };
@@ -197,18 +309,22 @@ public:
     // Early exit if CTA is out of range
     if (params.grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
       params.grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
-
       return;
     }
 
     int problem_size_k = params.problem_size.k();
 
-    ElementA *ptr_A = static_cast<ElementA *>(params.ptr_A); 
-    ElementB *ptr_B = static_cast<ElementB *>(params.ptr_B);
+    ElementA *ptr_A = static_cast<ElementA *>(params.op_A.data); 
+    ElementB *ptr_B = static_cast<ElementB *>(params.op_B.data);
 
     // TODO(tgale): Do we need to synchronize here?
     __syncthreads();
 
+    // Config::OffsetA(threadblock_tile_offset.m(), Mma::Shape::kM, params.op_A);
+    // Config::OffsetB(threadblock_tile_offset.n(), Mma::Shape::kN, params.op_B);
+    // Config::ParamsA(params.op_A);
+    // Config::ParamsB(params.op_B);
+    
     // Compute initial location in logical coordinates
     ::cutlass::MatrixCoord tb_offset_A{
       threadblock_tile_offset.m() * Mma::Shape::kM, 0
@@ -217,7 +333,6 @@ public:
     ::cutlass::MatrixCoord tb_offset_B{
       0, threadblock_tile_offset.n() * Mma::Shape::kN
     };
-
 
     // Compute position within threadblock
     int thread_idx = threadIdx.x;
@@ -283,8 +398,8 @@ public:
       threadblock_tile_offset.n() * Mma::Shape::kN
     );
 
-    ElementC *ptr_C = static_cast<ElementC *>(params.ptr_C); 
-    ElementC *ptr_D = static_cast<ElementC *>(params.ptr_D);
+    ElementC *ptr_C = static_cast<ElementC *>(params.op_C.data); 
+    ElementC *ptr_D = static_cast<ElementC *>(params.op_D.data);
 
     //
     // Fetch pointers based on mode.

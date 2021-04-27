@@ -62,7 +62,9 @@ typedef ::testing::Types<
   // Problem<8, 16, 8>,
   // Problem<32, 64, 128>,
   Problem<128, 128, 8>,
+  Problem<128, 256, 8>,
   Problem<128, 512, 64>,
+  Problem<256, 128, 8>,
   Problem<512, 512, 1024>
   > TestProblems;
 
@@ -152,11 +154,6 @@ TYPED_TEST(GemmTest, DsdNT) {
       /*pad_rows_to=*/1);  
   Matrix lhs = ToMatrix(lhs_);
   CudaBlockSparseMatrix<half> lhs_gpu(lhs_);
-
-  for (int i = 0; i < 128*128; ++i) {
-    float diff = lhs.Values()[i] - lhs_.Values()[i];
-    ASSERT_EQ(diff, 0);
-  }
   
   // Create the dense matrix on cpu & gpu
   Matrix rhs(this->kDimN, this->kDimK, &this->generator_);
@@ -171,6 +168,8 @@ TYPED_TEST(GemmTest, DsdNT) {
 			    this->kDimN,
 			    this->kDimK,
 			    lhs_gpu.Values(),
+			    lhs_gpu.RowOffsets(),
+			    lhs_gpu.ColumnIndices(),
 			    rhs_gpu.Values(),
 			    out_gpu.Values()));
   CUDA_CALL(cudaStreamSynchronize(nullptr));

@@ -92,7 +92,6 @@ inline Matrix ToMatrix(const BlockSparseMatrix &x) {
       for (int br = 0; br < bd; ++br) {
 	for (int bc = 0; bc < bd; ++bc) {
 	  float v = x.Values()[l + br * bd + bc];
-
 	  int row_idx = i * bd + br;
 	  int col_idx = j + bc;
 	  out[row_idx * cols + col_idx] = v;
