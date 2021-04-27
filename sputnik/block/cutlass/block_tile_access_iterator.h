@@ -84,10 +84,8 @@ class BlockTileAccessIterator<
   // NOTE: All increments are statically computable for block-sparse
   // iterator with known block dimensions.
   struct Params {
-    int *offsets_;
-    
     CUTLASS_HOST_DEVICE Params() {}
-    CUTLASS_HOST_DEVICE Params(void *offsets) : offsets_((int*)offsets) {}
+    CUTLASS_HOST_DEVICE Params(Layout layout) {}
   };
 
  private:
@@ -163,16 +161,10 @@ class BlockTileAccessIterator<
       /// ID of each participating thread
       int thread_id,
       /// Initial offset of threadblock
-      const TensorCoord &threadblock_offset_)
+      int block_row_offset)
       : pointer_(reinterpret_cast<BytePointer>(
             const_cast<NonConstPointer>(pointer))),
         extent_(extent) {
-    // Load the offset for this threadblocks block row.
-    const TensorCoord threadblock_offset = LayoutCvt::to_pitch_linear(
-      threadblock_offset_);
-    const int block_row_idx = threadblock_offset.strided() / Shape::kStrided;
-    int block_row_offset = __ldg(params.offsets_ + block_row_idx);
-    
     // TODO(tgale): Add threadblock_offset to pointer. If we want
     // to support starting at different column block.
     //

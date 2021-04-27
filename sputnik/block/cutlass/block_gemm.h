@@ -16,71 +16,160 @@ template <
 struct BlockGemm;
   
 template <
-  typename Arguments,
+  typename Gemm,
   typename LayoutA,
   typename LayoutB>
-struct FilterHelper {
+struct ConfigHelper {
 
-  using RetA = int;
-  using RetB = int;
-
+  using Arguments = typename Gemm::Arguments;
+  using Params = typename Gemm::Params;
+  
+  using RetParamsA = int;
+  using RetParamsB = int;
+  using RetOffsetA = ::cutlass::MatrixCoord;
+  using RetOffsetB = ::cutlass::MatrixCoord;
+  
+  Params const &params;
+  const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
+  
+  CUTLASS_DEVICE
+  ConfigHelper(Params const &params_,
+	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
+    params(params_), threadblock_tile_offset(threadblock_tile_offset_) {}
+    
   CUTLASS_HOST_DEVICE
-  static RetA ParamsA(Arguments args) {
+  static RetParamsA ParamsA(Arguments args) {
     return args.lda;
   }
 
   CUTLASS_HOST_DEVICE
-  static RetB ParamsB(Arguments args) {
+  static RetParamsB ParamsB(Arguments args) {
     return args.ldb;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetA OffsetA() const {
+    RetOffsetA tb_offset_A{
+      threadblock_tile_offset.m() * Gemm::Mma::Shape::kM, 0
+    };
+    return tb_offset_A;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetB OffsetB() const {
+    RetOffsetB tb_offset_B{
+      0, threadblock_tile_offset.n() * Gemm::Mma::Shape::kN
+    };
+    return tb_offset_B;
+  }
+			    
+  CUTLASS_DEVICE
+  int StepsK() const {
+    return (params.problem_size.k() + Gemm::Mma::Shape::kK - 1) /
+      Gemm::Mma::Shape::kK;
   }
 };
 
 // TODO(tgale): Augment this to pass all information about a
 // matrix into the params.
 template <
-  typename Arguments,
+  typename Gemm,
   typename LayoutB>
-struct FilterHelper<Arguments, BlockPitchLinear, LayoutB> {
+struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
+  using Arguments = typename Gemm::Arguments;
+  using Params = typename Gemm::Params;
+  
+  using RetParamsA = int;
+  using RetParamsB = int;
+  using RetOffsetA = int;
+  using RetOffsetB = ::cutlass::MatrixCoord;
 
-  using RetA = void *;
-  using RetB = int;
-
+  Params const &params;
+  const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
+  int offset_a, nnz_a;
+  
+  CUTLASS_DEVICE
+  ConfigHelper(Params const &params_,
+	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
+    params(params_), threadblock_tile_offset(threadblock_tile_offset_) {
+    // Load the offset and number of nonzeros.
+    int *offset_ptr_a = (int*)params_.op_A.offsets;
+    int block_row_idx = threadblock_tile_offset.m();    
+    offset_a = __ldg(offset_ptr_a + block_row_idx);
+    nnz_a = __ldg(offset_ptr_a + block_row_idx + 1) - offset_a;
+  }
+  
   CUTLASS_HOST_DEVICE
-  static RetA ParamsA(Arguments args) {
-    return args.op_A.offsets;
+  static RetParamsA ParamsA(Arguments args) {
+    return args.lda;
   }
 
   CUTLASS_HOST_DEVICE
-  static RetB ParamsB(Arguments args) {
+  static RetParamsB ParamsB(Arguments args) {
     return args.ldb;
   }
+
+  CUTLASS_DEVICE
+  RetOffsetA OffsetA() const {
+    return offset_a;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetB OffsetB() const {
+    RetOffsetB tb_offset_B{
+      0, threadblock_tile_offset.n() * Gemm::Mma::Shape::kN
+    };
+    return tb_offset_B;
+  }
+			    
+  CUTLASS_DEVICE
+  int StepsK() const {
+    return (nnz_a + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
+  }  
 };  
   
 // Helper to handle mixes of sparse and dense arguments.
 template <typename Mma_, typename Epilogue_, typename ThreadblockSwizzle_>
-struct Filter {
+struct Config {
 
   using Gemm = BlockGemm<Mma_, Epilogue_, ThreadblockSwizzle_>;
 
   using Arguments = typename Gemm::Arguments;
+  using Params = typename Gemm::Params;
+  
   using LayoutA = typename Gemm::Mma::IteratorA::Layout;
   using ElementA = typename Gemm::Mma::IteratorA::Element;
   using LayoutB = typename Gemm::Mma::IteratorB::Layout;
   using ElementB = typename Gemm::Mma::IteratorB::Element;
 
-  using Helper = FilterHelper<Arguments, LayoutA, LayoutB>;
+  using Helper = ConfigHelper<Gemm, LayoutA, LayoutB>;
+
+  // Underlying helper.
+  Helper helper;
   
-  // Default config - no blocksparse arguments.
+  CUTLASS_DEVICE
+  Config(Params const &params_,
+	 const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
+    helper(params_, threadblock_tile_offset_) {}
 
   CUTLASS_HOST_DEVICE
-  static typename Helper::RetA ParamsA(Arguments args) {
+  static typename Helper::RetParamsA ParamsA(Arguments args) {
     return Helper::ParamsA(args);
   }
 
   CUTLASS_HOST_DEVICE
-  static typename Helper::RetB ParamsB(Arguments args) {
+  static typename Helper::RetParamsB ParamsB(Arguments args) {
     return Helper::ParamsB(args);
-  }  
+  }
+
+  CUTLASS_DEVICE
+  typename Helper::RetOffsetA OffsetA() const { return helper.OffsetA(); }
+
+  CUTLASS_DEVICE
+  typename Helper::RetOffsetB OffsetB() const { return helper.OffsetB(); }
+			    
+  CUTLASS_DEVICE
+  int StepsK() const { return helper.StepsK(); }
 };
 
 // Gemm class.
@@ -106,7 +195,7 @@ public:
   using WarpCount = typename Mma::WarpCount;
   static int const kThreadCount = 32 * WarpCount::kCount;
 
-  using ArgFilter = Filter<Mma, Epilogue, ThreadblockSwizzle>;
+  using Config = Config<Mma, Epilogue, ThreadblockSwizzle>;
   
   //
   // Structures
@@ -242,8 +331,8 @@ public:
       ::cutlass::gemm::GemmCoord const & grid_tiled_shape):
       problem_size(args.problem_size),
       grid_tiled_shape(grid_tiled_shape),
-      params_A(ArgFilter::ParamsA(args)),
-      params_B(ArgFilter::ParamsB(args)),
+      params_A(Config::ParamsA(args)),
+      params_B(Config::ParamsB(args)),
       params_C(args.ldc),
       params_D(args.ldd),
       output_op(args.epilogue),
@@ -312,7 +401,7 @@ public:
       return;
     }
 
-    int problem_size_k = params.problem_size.k();
+    Config config(params, threadblock_tile_offset);
 
     ElementA *ptr_A = static_cast<ElementA *>(params.op_A.data); 
     ElementB *ptr_B = static_cast<ElementB *>(params.op_B.data);
@@ -326,17 +415,13 @@ public:
     // Config::ParamsB(params.op_B);
     
     // Compute initial location in logical coordinates
-    ::cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM, 0
-    };
-
-    ::cutlass::MatrixCoord tb_offset_B{
-      0, threadblock_tile_offset.n() * Mma::Shape::kN
-    };
+    auto tb_offset_A = config.OffsetA();
+    auto tb_offset_B = config.OffsetB();
 
     // Compute position within threadblock
     int thread_idx = threadIdx.x;
-
+    int problem_size_k = params.problem_size.k();
+    
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(
       params.params_A,
