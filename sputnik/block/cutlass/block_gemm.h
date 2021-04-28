@@ -3,6 +3,7 @@
 
 #include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "sputnik/block/cutlass/op.h"
+#include "sputnik/block/cutlass/type_utils.h"
 
 #include "cutlass/gemm/kernel/gemm_universal.h"
 
@@ -30,6 +31,9 @@ struct ConfigHelper {
   using RetParamsB = int;
   using RetOffsetA = ::cutlass::MatrixCoord;
   using RetOffsetB = ::cutlass::MatrixCoord;
+
+  using ParamsA = typename Gemm::Mma::IteratorA::Params;
+  using ParamsB = typename Gemm::Mma::IteratorB::Params;
   
   Params const &params;
   const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
@@ -40,15 +44,25 @@ struct ConfigHelper {
     params(params_), threadblock_tile_offset(threadblock_tile_offset_) {}
     
   CUTLASS_HOST_DEVICE
-  static RetParamsA ParamsA(Arguments args) {
+  static RetParamsA ItArgsA(Arguments args) {
     return args.op_A.ld;
   }
 
   CUTLASS_HOST_DEVICE
-  static RetParamsB ParamsB(Arguments args) {
+  static RetParamsB ItArgsB(Arguments args) {
     return args.op_B.ld;
   }
 
+  CUTLASS_DEVICE
+  ParamsA UpdateParamsA(ParamsA const &params) const {
+    return params;
+  }
+
+  CUTLASS_DEVICE
+  ParamsB UpdateParamsB(ParamsB const &params) const {
+    return params;
+  }
+  
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
     RetOffsetA tb_offset_A{
@@ -84,6 +98,15 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   using RetOffsetA = int;
   using RetOffsetB = ::cutlass::MatrixCoord;
 
+  using ParamsA = typename Gemm::Mma::IteratorA::Params;
+  using ParamsB = typename Gemm::Mma::IteratorB::Params;
+  
+  using ElementA = typename Gemm::Mma::IteratorA::Element;
+  using MetaA = typename Type<ElementA>::Meta;
+
+  static const int kBlockSize = Gemm::Mma::IteratorA::Shape::kBlock *
+    Gemm::Mma::IteratorA::Shape::kBlock;
+  
   Params const &params;
   const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
   int offset_a, nnz_a;
@@ -103,15 +126,29 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   }
   
   CUTLASS_HOST_DEVICE
-  static RetParamsA ParamsA(Arguments args) {
+  static RetParamsA ItArgsA(Arguments args) {
     return args.op_A;
   }
 
   CUTLASS_HOST_DEVICE
-  static RetParamsB ParamsB(Arguments args) {
+  static RetParamsB ItArgsB(Arguments args) {
+    // Set the meta-data pointer for operand B.
+    args.op_B.indices = args.op_A.indices;
     return args.op_B;
   }
 
+  CUTLASS_DEVICE
+  ParamsA UpdateParamsA(ParamsA const &params) const {
+    return params;
+  }
+  
+  CUTLASS_DEVICE
+  ParamsB UpdateParamsB(ParamsB const &params) const {
+    ParamsB out = params;
+    out.indices += offset_a / kBlockSize;
+    return out;
+  }
+  
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
     return offset_a;
@@ -146,6 +183,9 @@ struct Config {
   using LayoutB = typename Gemm::Mma::IteratorB::Layout;
   using ElementB = typename Gemm::Mma::IteratorB::Element;
 
+  using ParamsA = typename Gemm::Mma::IteratorA::Params;
+  using ParamsB = typename Gemm::Mma::IteratorB::Params;
+  
   using Helper = ConfigHelper<Gemm, LayoutA, LayoutB>;
 
   // Underlying helper.
@@ -157,15 +197,25 @@ struct Config {
     helper(params_, threadblock_tile_offset_) {}
 
   CUTLASS_HOST_DEVICE
-  static typename Helper::RetParamsA ParamsA(Arguments args) {
-    return Helper::ParamsA(args);
+  static typename Helper::RetParamsA ItArgsA(Arguments args) {
+    return Helper::ItArgsA(args);
   }
 
   CUTLASS_HOST_DEVICE
-  static typename Helper::RetParamsB ParamsB(Arguments args) {
-    return Helper::ParamsB(args);
+  static typename Helper::RetParamsB ItArgsB(Arguments args) {
+    return Helper::ItArgsB(args);
   }
 
+  CUTLASS_DEVICE
+  ParamsA UpdateParamsA(ParamsA const &params) const {
+    return helper.UpdateParamsA(params);
+  }
+
+  CUTLASS_DEVICE
+  ParamsB UpdateParamsB(ParamsB const &params) const {
+    return helper.UpdateParamsB(params);
+  }
+  
   CUTLASS_DEVICE
   typename Helper::RetOffsetA OffsetA() const { return helper.OffsetA(); }
 
@@ -290,8 +340,8 @@ public:
       ::cutlass::gemm::GemmCoord const & grid_tiled_shape):
       problem_size(args.problem_size),
       grid_tiled_shape(grid_tiled_shape),
-      params_A(Config::ParamsA(args)),
-      params_B(Config::ParamsB(args)),
+      params_A(Config::ItArgsA(args)),
+      params_B(Config::ItArgsB(args)),
       params_C(args.op_C.ld),
       params_D(args.op_D.ld),
       output_op(args.epilogue),
@@ -367,11 +417,6 @@ public:
 
     // TODO(tgale): Do we need to synchronize here?
     __syncthreads();
-
-    // Config::OffsetA(threadblock_tile_offset.m(), Mma::Shape::kM, params.op_A);
-    // Config::OffsetB(threadblock_tile_offset.n(), Mma::Shape::kN, params.op_B);
-    // Config::ParamsA(params.op_A);
-    // Config::ParamsB(params.op_B);
     
     // Compute initial location in logical coordinates
     auto tb_offset_A = config.OffsetA();
@@ -383,14 +428,14 @@ public:
     
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(
-      params.params_A,
+      config.UpdateParamsA(params.params_A),
       ptr_A,
       {params.problem_size.m(), problem_size_k},
       thread_idx,
       tb_offset_A);
 
     typename Mma::IteratorB iterator_B(
-      params.params_B,
+      config.UpdateParamsB(params.params_B),
       ptr_B,
       {problem_size_k, params.problem_size.n()},
       thread_idx,

@@ -51,7 +51,7 @@ class DependentTileAccessIterator {
   
   struct Params {
     typename Iterator::Params iterator_params;
-    Meta *offsets;
+    Meta *indices;
     int stride;
 
     // Default ctor
@@ -62,7 +62,7 @@ class DependentTileAccessIterator {
     CUTLASS_HOST_DEVICE
     Params(Op op)
       : iterator_params(op.ld),
-	offsets((Meta*)op.offsets),
+	indices((Meta*)op.indices),
 	stride(op.ld) {}
   };
 
@@ -95,7 +95,7 @@ class DependentTileAccessIterator {
 		threadblock_offset),
       params_(params),
       iteration_block_(0),
-      current_offset_(0) {
+      current_offset_(-Shape::kBlock) {
     // NOTE: This is pre-offset to the correct place by Config.
     //
     // TODO(tgale): Figure out how to handle this for the
@@ -121,19 +121,23 @@ class DependentTileAccessIterator {
     // tile. Generalize this.
     iterator_.add_tile_offset(tile_offset_);
 
-    // TODO(tgale): Pipeline the loading of offsets to avoid
+    // TODO(tgale): This iterator adds 26 registers to our
+    // kernel. If we see negative impact, we can try keeping
+    // the data-dependent offset as a separate value and
+    // only offsetting the pointer in get().
+    //
+    // TODO(tgale): Pipeline the loading of indices to avoid
     // the added latency.
     if (iteration_block_ == 0) {
-      int absolute_offset = (int)__ldg(params_.offsets);
-      int relative_offset = absolute_offset - current_offset_ - 1;
+      int absolute_offset = (int)__ldg(params_.indices);
+      int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
 
-      LongIndex offset = Shape::kBlock * relative_offset;
-      offset = kAdvanceRank ? offset * params_.stride : offset;
-      iterator_.add_pointer_offset(offset);
+      if (kAdvanceRank) relative_offset *= params_.stride;
+      iterator_.add_pointer_offset(relative_offset);
       
       // Update our current offset and pointer for next iteration.
       current_offset_ = absolute_offset;
-      ++params_.offsets;
+      ++params_.indices;
     }
 
     // TODO(tgale): We could express this more succinctly
