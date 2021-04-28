@@ -80,11 +80,10 @@ cudaError_t hgemm_tn(
 
   Gemm::Arguments args({M, N, K},
 		       {1.0f, 0.0f},
-		       A, B, C, C,
-		       /*lda=*/M,
-		       /*ldb=*/N,
-		       /*ldc=*/N,
-		       /*ldd=*/N);
+		       {A, /*lda=*/M},
+		       {B, /*ldb=*/N},
+		       {C, /*ldC=*/N},
+		       {C, /*ldc=*/N});
   
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Gemm::KernelFn::can_implement(args);
@@ -107,11 +106,10 @@ cudaError_t hgemm_nt(
 
   Gemm::Arguments args({M, N, K},
 		       {1.0f, 0.0f},
-		       A, B, C, C,
-		       /*lda=*/K,
-		       /*ldb=*/K,
-		       /*ldc=*/N,
-		       /*ldd=*/N);
+		       {A, /*lda=*/K},
+		       {B, /*ldb=*/K},
+		       {C, /*ldc=*/N},
+		       {C, /*ldc=*/N});
 
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Gemm::KernelFn::can_implement(args);

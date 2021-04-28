@@ -39,12 +39,12 @@ struct ConfigHelper {
     
   CUTLASS_HOST_DEVICE
   static RetParamsA ParamsA(Arguments args) {
-    return args.lda;
+    return args.op_A.ld;
   }
 
   CUTLASS_HOST_DEVICE
   static RetParamsB ParamsB(Arguments args) {
-    return args.ldb;
+    return args.op_B.ld;
   }
 
   CUTLASS_DEVICE
@@ -104,12 +104,12 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   
   CUTLASS_HOST_DEVICE
   static RetParamsA ParamsA(Arguments args) {
-    return args.lda;
+    return args.op_A.ld;
   }
 
   CUTLASS_HOST_DEVICE
   static RetParamsB ParamsB(Arguments args) {
-    return args.ldb;
+    return args.op_B.ld;
   }
 
   CUTLASS_DEVICE
@@ -211,15 +211,18 @@ public:
     void * offsets;
     void * indices;
 
+    int ld;
+    
     CUTLASS_HOST_DEVICE
-    Op(void const *data_, void const *offsets_, void const *indices_) :
+    Op(void const *data_, void const *offsets_, void const *indices_, int ld_) :
       data(const_cast<void*>(data_)),
       offsets(const_cast<void*>(offsets_)),
-      indices(const_cast<void*>(indices_)) {}
+      indices(const_cast<void*>(indices_)),
+      ld(ld_) {}
 
     CUTLASS_HOST_DEVICE
-    Op(void const *data_) :
-      data(const_cast<void*>(data_)), offsets(nullptr), indices(nullptr) {}
+    Op(void const *data_, int ld_) :
+      data(const_cast<void*>(data_)), offsets(nullptr), indices(nullptr), ld(ld_) {}
   };
   
   /// Argument structure
@@ -237,17 +240,12 @@ public:
     Op op_C;
     Op op_D;
 
-    int lda;
-    int ldb;
-    int ldc;
-    int ldd;
-
     //
     // Methods
     //
 
     Arguments(): 
-      op_A(nullptr), op_B(nullptr), op_C(nullptr), op_D(nullptr) { }
+      op_A(nullptr, 0), op_B(nullptr, 0), op_C(nullptr, 0), op_D(nullptr, 0) { }
 
     /// constructs an arguments structure
     Arguments(
@@ -256,40 +254,17 @@ public:
       Op op_A,
       Op op_B,
       Op op_C,
-      Op op_D,
-      int lda,
-      int ldb,
-      int ldc,
-      int ldd
+      Op op_D
     ):
       problem_size(problem_size), 
       epilogue(epilogue), 
-      op_A(op_A), op_B(op_B), op_C(op_C), op_D(op_D), 
-      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {}
-
-    Arguments(
-      ::cutlass::gemm::GemmCoord problem_size,
-      typename EpilogueOutputOp::Params epilogue,
-      void const * ptr_A,
-      void const * ptr_B,
-      void const * ptr_C,
-      void * ptr_D,
-      int lda,
-      int ldb,
-      int ldc,
-      int ldd
-    ):
-      problem_size(problem_size), 
-      epilogue(epilogue), 
-      op_A(ptr_A), op_B(ptr_B), op_C(ptr_C), op_D(ptr_D), 
-      lda(lda), ldb(ldb), ldc(ldc), ldd(ldd) {}    
+      op_A(op_A), op_B(op_B), op_C(op_C), op_D(op_D) {}
 
     /// Returns arguments for the transposed problem
     Arguments transposed_problem() const {
       Arguments args(*this);
       std::swap(args.problem_size.m(), args.problem_size.n());
       std::swap(args.op_A, args.op_B);
-      std::swap(args.lda, args.ldb);
       return args;
     }
   };
@@ -324,10 +299,10 @@ public:
     Params():
       params_C(0),
       params_D(0),
-      op_A(nullptr),
-      op_B(nullptr),
-      op_C(nullptr),
-      op_D(nullptr) {}
+      op_A(nullptr, 0),
+      op_B(nullptr, 0),
+      op_C(nullptr, 0),
+      op_D(nullptr, 0) {}
 
     CUTLASS_HOST_DEVICE
     Params(
@@ -337,8 +312,8 @@ public:
       grid_tiled_shape(grid_tiled_shape),
       params_A(Config::ParamsA(args)),
       params_B(Config::ParamsB(args)),
-      params_C(args.ldc),
-      params_D(args.ldd),
+      params_C(args.op_C.ld),
+      params_D(args.op_D.ld),
       output_op(args.epilogue),
       op_A(args.op_A),
       op_B(args.op_B),
