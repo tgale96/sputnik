@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sputnik/cuda_utils.h"
-#include "sputnik/block/bdsd/cuda_bdsd.h"
+#include "sputnik/block/dsd/dsd.h"
 #include "sputnik/block/matrix_utils.h"
 
 #include "absl/random/random.h"
@@ -39,7 +39,7 @@ struct Problem {
 };
 
 template <typename Problem>
-class BdsdTest : public ::testing::Test {
+class DsdTest : public ::testing::Test {
  public:
   const int kDimM = Problem::kDimM;
   const int kDimK = Problem::kDimK;
@@ -49,40 +49,6 @@ class BdsdTest : public ::testing::Test {
 
   // Random number generator for creating matrices.
   absl::BitGen generator_;
-
-  /**
-   * @brief Basic matrix-multiplication routine for testing.
-   */
-  void Bdsd(int m, int k, int n, int block_dim, const float *a_values,
-            const int *a_row_offsets, const int *a_column_indices,
-            const float *b, float *c) {
-    for (int i = 0; i < m / block_dim; ++i) {
-      for (int j = 0; j < n; ++j) {
-        double accum[Problem::kBlockDim] = {};
-        for (int l = a_row_offsets[i];
-             l < a_row_offsets[i + 1];
-             l += block_dim * block_dim) {
-          int idx_offset = l / (block_dim * block_dim);
-          int a_col = a_column_indices[idx_offset];
-
-          for (int block_y = 0; block_y < block_dim; ++block_y) {
-            for (int block_x = 0; block_x < block_dim; ++block_x) {
-              float a_val = a_values[l + block_y * block_dim + block_x];
-              float b_val = b[(a_col + block_x) * n + j];
-
-              accum[block_y] += static_cast<double>(a_val) *
-                                static_cast<double>(b_val);
-            }
-          }
-        }
-
-        // Write the results.
-        for (int block_y = 0; block_y < block_dim; ++block_y) {
-          c[(i * block_dim + block_y) * n + j] = accum[block_y];
-        }
-      }
-    }
-  }
 };
 
 typedef ::testing::Types<
@@ -102,46 +68,39 @@ typedef ::testing::Types<
   Problem<1024, 1024, 1024, 256*1024, 32>
   > TestProblems;
 
-TYPED_TEST_SUITE(BdsdTest, TestProblems);
+TYPED_TEST_SUITE(DsdTest, TestProblems);
 
-TYPED_TEST(BdsdTest, Bdsd) {
+TYPED_TEST(DsdTest, Dsd) {
   // Create the sparse matrix on cpu & gpu.
-  BlockSparseMatrix sparse_matrix(
+  BlockSparseMatrix lhs_(
       this->kDimM, this->kDimK,
       this->kNonZeros, this->kBlockDim,
-      RANDOM_UNIFORM,
-      &this->generator_,
-      /*pad_rows_to=*/1);
-  CudaBlockSparseMatrix<half> sparse_matrix_gpu(sparse_matrix);
+      RANDOM_UNIFORM, &this->generator_,
+      /*pad_rows_to=*/1);  
+  Matrix lhs = ToMatrix(lhs_);
+  CudaBlockSparseMatrix<half> lhs_gpu(lhs_);
   
   // Create the dense matrix on cpu & gpu
-  Matrix matrix(this->kDimK, this->kDimN, &this->generator_);
-  CudaMatrix<half> matrix_gpu(matrix);
+  Matrix rhs(this->kDimK, this->kDimN, &this->generator_);
+  CudaMatrix<half> rhs_gpu(rhs);
 
   // Create the output matrix on gpu & gpu.
-  Matrix output_matrix(this->kDimM, this->kDimN, &this->generator_);
-  CudaMatrix<half> output_matrix_gpu(output_matrix);
+  CudaMatrix<half> out_gpu(this->kDimM, this->kDimN, &this->generator_);
   
   // Run the gpu kernel.
-  CUDA_CALL(CudaBdsd(this->kDimM, this->kDimK, this->kDimN,
-		     sparse_matrix_gpu.NumElementsWithPadding(),
-		     this->kBlockDim, sparse_matrix_gpu.Values(),
-		     sparse_matrix_gpu.RowOffsets(),
-		     sparse_matrix_gpu.ColumnIndices(),
-		     matrix_gpu.Values(),
-		     output_matrix_gpu.Values(), 0));
+  CUDA_CALL(Dsd(this->kDimM, this->kDimK, this->kDimN,
+		lhs_gpu.NumElementsWithPadding(),
+		this->kBlockDim, lhs_gpu.Values(),
+		lhs_gpu.RowOffsets(),
+		lhs_gpu.ColumnIndices(),
+		rhs_gpu.Values(), false,
+		out_gpu.Values(), 0));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
 
-  this->Bdsd(this->kDimM, this->kDimK, this->kDimN, this->kBlockDim,
-             sparse_matrix.Values(), sparse_matrix.RowOffsets(),
-             sparse_matrix.ColumnIndices(), matrix.Values(),
-             output_matrix.Values());
-  
   // Verify the results.
-  Matrix results(output_matrix_gpu);  
-  auto comparator = Pointwise(
-      NanSensitiveFloatNear(5e-02),
-      ToVector(output_matrix));
+  Matrix out = lhs * rhs;  
+  Matrix results(out_gpu);  
+  auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
   ASSERT_THAT(ToVector(results), comparator);
 }
 

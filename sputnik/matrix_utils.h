@@ -353,6 +353,23 @@ class Matrix {
   float operator()(int row, int column) const;
   float& operator()(int row, int column);
 
+  Matrix operator*(const Matrix &other) {
+    CHECK_EQ(Columns(), other.Rows());
+    int m = Rows(), n = other.Columns(), k = Columns();
+    Matrix out(m, n);
+    
+    for (int i = 0; i < m; ++i) {
+      for (int j = 0; j < n; ++j) {
+	double acc = 0.0;
+	for (int l = 0; l < k; ++l) {
+	  acc += (*this)(i, l) * other(l, j);
+	}
+	out(i, j) = (float)acc;
+      }
+    }
+    return out;
+  }
+
  private:
 
   // Matrix value storage.
@@ -394,7 +411,7 @@ class CudaMatrix {
   int Rows() const { return rows_; }
 
   int Columns() const { return columns_; }
-
+  
  protected:
   // Matrix value storage.
   Value* values_;

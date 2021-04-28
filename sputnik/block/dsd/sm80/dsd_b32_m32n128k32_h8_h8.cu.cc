@@ -1,4 +1,4 @@
-#include "sputnik/block/bdsd/sm80/cuda_bdsd.h"
+#include "sputnik/block/dsd/sm80/dsd.h"
 #include "sputnik/cuda_utils.h"
 #include "sputnik/load_store.h"
 
@@ -64,7 +64,7 @@ __device__ __forceinline__ T* offset(T* p, int off) {
       reinterpret_cast<const char*>(p) + off_bytes));
 }
   
-struct bdsd_b32_m32n128k32_h8_h8 {
+struct dsd_b32_m32n128k32_h8_h8 {
 
   // Block dimension parameters.
   static constexpr int kBlockDim = 32;
@@ -306,7 +306,7 @@ struct bdsd_b32_m32n128k32_h8_h8 {
   
 };
 
-__global__ void __launch_bounds__(32, 8) bdsd_b32_m32n128k32_h8_h8_kernel(
+__global__ void __launch_bounds__(32, 8) dsd_b32_m32n128k32_h8_h8_kernel(
     int m, int k, int n,
     const half2* __restrict__ values,
     const int* __restrict__ offsets,
@@ -315,7 +315,7 @@ __global__ void __launch_bounds__(32, 8) bdsd_b32_m32n128k32_h8_h8_kernel(
     half2* __restrict__ output_matrix) {
   // TODO(tgale): Figure out a cleaner way to fail on unsupported hardware.
 #if __CUDA_ARCH__ >= 800
-  bdsd_b32_m32n128k32_h8_h8::KernelFn(
+  dsd_b32_m32n128k32_h8_h8::KernelFn(
       m, k, n, values, offsets, indices,
       dense_matrix, output_matrix);
 #endif
@@ -329,7 +329,7 @@ int cdiv(int x, int y) {
   
 } // namespace
   
-bool can_launch_bdsd_b32_m32n128k32_h8_h8(
+bool can_launch_dsd_b32_m32n128k32_h8_h8(
   int m, int k, int n, int nonzeros, int block_size) {
   bool can_launch = true;
   can_launch &= block_size == 32;
@@ -339,7 +339,7 @@ bool can_launch_bdsd_b32_m32n128k32_h8_h8(
   return can_launch;
 }
   
-cudaError_t launch_bdsd_b32_m32n128k32_h8_h8(
+cudaError_t launch_dsd_b32_m32n128k32_h8_h8(
     int m, int k, int n,
     int nonzeros, int block_size,
     const half* __restrict__ values,
@@ -355,7 +355,7 @@ cudaError_t launch_bdsd_b32_m32n128k32_h8_h8(
   dim3 grid_dim(cdiv(m, block_size), cdiv(n, 128), 1);
   dim3 block_dim(32, 1, 1);
 
-  bdsd_b32_m32n128k32_h8_h8_kernel<<<grid_dim, block_dim, 0, stream>>>(
+  dsd_b32_m32n128k32_h8_h8_kernel<<<grid_dim, block_dim, 0, stream>>>(
     m, k, n, (const half2*)values, offsets, (const short2*)indices,
     (const half2*)dense_matrix, (half2*)output_matrix);
   return cudaGetLastError();

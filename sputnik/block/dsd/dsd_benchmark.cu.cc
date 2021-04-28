@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sputnik/cuda_utils.h"
-#include "sputnik/block/bdsd/cuda_bdsd.h"
+#include "sputnik/block/dsd/dsd.h"
 #include "sputnik/block/matrix_utils.h"
 
 #include "absl/random/random.h"
@@ -42,13 +42,14 @@ void BenchmarkArgs(benchmark::internal::Benchmark* b) {
   }
 }
 
-void BM_CudaBdsd(benchmark::State& state) {
+void BM_Dsd(benchmark::State& state) {
   const int kDimM = state.range(0);
   const int kDimK = state.range(1);
   const int kDimN = state.range(2);
   const int kNonZeros = state.range(3);
   const int kBlockDim = 32;
-
+  const bool kTransposeB = false;
+  
   // Create the sparse matrix on cpu & gpu.
   absl::BitGen generator;
   CudaBlockSparseMatrix<half> sparse_matrix(
@@ -64,14 +65,14 @@ void BM_CudaBdsd(benchmark::State& state) {
   int batch_size = 10;
   while (state.KeepRunningBatch(batch_size)) {
     for (int i = 0; i < batch_size; ++i) {
-      CUDA_CALL(CudaBdsd(
+      CUDA_CALL(Dsd(
           kDimM, kDimK, kDimN,
           sparse_matrix.NumElementsWithPadding(),
           kBlockDim,
           sparse_matrix.Values(),
           sparse_matrix.RowOffsets(),
           sparse_matrix.ColumnIndices(),
-          matrix.Values(),
+          matrix.Values(), kTransposeB,
           output_matrix.Values(), 0));
     }
     CUDA_CALL(cudaStreamSynchronize(0));
@@ -84,7 +85,7 @@ void BM_CudaBdsd(benchmark::State& state) {
       kBlockDim * kBlockDim * kDimN * 2);
 }
 
-BENCHMARK(BM_CudaBdsd)->Apply(BenchmarkArgs)->UseRealTime();
+BENCHMARK(BM_Dsd)->Apply(BenchmarkArgs)->UseRealTime();
 
 }  // namespace block
 }  // namespace sputnik

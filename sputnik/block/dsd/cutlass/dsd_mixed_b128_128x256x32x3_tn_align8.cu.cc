@@ -1,4 +1,4 @@
-#include "sputnik/block/bdsd/cutlass/cuda_bdsd.h"
+#include "sputnik/block/dsd/cutlass/dsd.h"
 #include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "sputnik/block/cutlass/block_size.h"
 #include "sputnik/block/cutlass/default_block_gemm.h"
@@ -10,7 +10,7 @@ namespace cutlass {
     
 namespace {
 
-using dsd_mixed_128x256_32x3_tn_align8_base = 
+using dsd_mixed_b128_128x256x32x3_nt_align8_base = 
   typename DefaultBlockGemm<
   BlockSize::k128,
   // Non-transposed A operand.
@@ -37,29 +37,44 @@ using dsd_mixed_128x256_32x3_tn_align8_base =
 >::GemmKernel;
 
 // Define named type
-struct dsd_mixed_128x256_32x3_tn_align8 : 
-  public dsd_mixed_128x256_32x3_tn_align8_base { };
-
+struct dsd_mixed_b128_128x256x32x3_nt_align8 : 
+  public dsd_mixed_b128_128x256x32x3_nt_align8_base { };
   
 }  // namespace
 
-cudaError_t dsd_nt(
-  int M,
-  int N,
-  int K,
-  half const *A,
-  int const *offsets_A,
-  int16_t const *indices_A,
-  half const *B,
-  half *C) {
-  using Dsd = Kernel<dsd_mixed_128x256_32x3_tn_align8>;
 
-  Dsd::Arguments args({M, N, K},
+bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
+  int m, int k, int n, int nonzeros, int block_dim) {
+  using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
+
+  Dsd::Arguments args({m, n, k},
 		      {1.0f, 0.0f},
-		      {A, offsets_A, indices_A, /*lda=*/K},
-		      {B, /*ldb=*/K},
-		      {C, /*ldc=*/N},
-		      {C, /*ldc=*/N});
+		      {nullptr, 0},
+		      {nullptr, 0},
+		      {nullptr, 0},
+		      {nullptr, 0});
+
+  // Verify that we can implement the given problem.
+  ::cutlass::Status status = Dsd::KernelFn::can_implement(args);
+  return status == ::cutlass::Status::kSuccess && block_dim == 128;
+}
+  
+cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
+    int m, int k, int n,
+    int nonzeros, int block_dim,
+    const half* a,
+    const int* offsets_a,
+    const short* indices_a,
+    const half* b, bool transpose_b,
+    half* c, cudaStream_t stream) {
+  using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
+
+  Dsd::Arguments args({m, n, k},
+		      {1.0f, 0.0f},
+		      {a, offsets_a, indices_a, /*lda=*/k},
+		      {b, /*ldb=*/k},
+		      {c, /*ldc=*/n},
+		      {c, /*ldc=*/n});
 
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Dsd::KernelFn::can_implement(args);
@@ -68,8 +83,8 @@ cudaError_t dsd_nt(
   }
   
   Dsd dsd_operator;  
-  return dsd_operator(args);
-}  
+  return dsd_operator(args, stream);
+}
 
 }  // namespace cutlass
 }  // namespace block
