@@ -26,7 +26,13 @@ namespace block {
 using ::testing::NanSensitiveFloatNear;
 using ::testing::Pointwise;
 
-template <int kDimM_, int kDimK_, int kDimN_, int kNonZeros_, int kBlockDim_>
+template <
+  int kDimM_,
+  int kDimK_,
+  int kDimN_,
+  int kNonZeros_,
+  int kBlockDim_,
+  bool kTransposeB_ = false>
 struct Problem {
   static_assert(kNonZeros_ <= kDimM_ * kDimK_,
                 "Number of non-zero must fit in the matrix.");
@@ -36,6 +42,7 @@ struct Problem {
   static constexpr int kDimN = kDimN_;
   static constexpr int kNonZeros = kNonZeros_;
   static constexpr int kBlockDim = kBlockDim_;
+  static constexpr int kTransposeB = kTransposeB_;
 };
 
 template <typename Problem>
@@ -46,6 +53,7 @@ class DsdTest : public ::testing::Test {
   const int kDimN = Problem::kDimN;
   const int kNonZeros = Problem::kNonZeros;
   const int kBlockDim = Problem::kBlockDim;
+  const int kTransposeB = Problem::kTransposeB;
 
   // Random number generator for creating matrices.
   absl::BitGen generator_;
@@ -65,7 +73,13 @@ typedef ::testing::Types<
   Problem<512, 512, 1024, 128*512, 32>,
   Problem<1024, 1024, 1024, 1024*1024, 32>,
   Problem<1024, 1024, 1024, 512*1024, 32>,
-  Problem<1024, 1024, 1024, 256*1024, 32>
+  Problem<1024, 1024, 1024, 256*1024, 32>,
+  // Block 128 problems.
+  Problem<128, 128, 8, 128*128, 128, true>,    // Minimum problem size.
+  Problem<128, 256, 8, 128*128, 128, true>,    // Two inner loops.
+  Problem<256, 128, 8, 256*128, 128, true>,    // Two rows of blocks.
+  Problem<128, 128, 512, 128*128, 128, true>,  // Two tile columns.
+  Problem<128, 256, 8, 128*128, 128, true>     // 50% sparse.  
   > TestProblems;
 
 TYPED_TEST_SUITE(DsdTest, TestProblems);
@@ -81,7 +95,9 @@ TYPED_TEST(DsdTest, Dsd) {
   CudaBlockSparseMatrix<half> lhs_gpu(lhs_);
   
   // Create the dense matrix on cpu & gpu
-  Matrix rhs(this->kDimK, this->kDimN, &this->generator_);
+  int odb = this->kTransposeB ? this->kDimN : this->kDimK;
+  int ldb = this->kTransposeB ? this->kDimK : this->kDimN;
+  Matrix rhs(odb, ldb, &this->generator_);
   CudaMatrix<half> rhs_gpu(rhs);
 
   // Create the output matrix on gpu & gpu.
@@ -93,12 +109,12 @@ TYPED_TEST(DsdTest, Dsd) {
 		this->kBlockDim, lhs_gpu.Values(),
 		lhs_gpu.RowOffsets(),
 		lhs_gpu.ColumnIndices(),
-		rhs_gpu.Values(), false,
+		rhs_gpu.Values(), this->kTransposeB,
 		out_gpu.Values(), 0));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
 
   // Verify the results.
-  Matrix out = lhs * rhs;  
+  Matrix out = this->kTransposeB ? lhs * rhs.T() : lhs * rhs;
   Matrix results(out_gpu);  
   auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
   ASSERT_THAT(ToVector(results), comparator);
