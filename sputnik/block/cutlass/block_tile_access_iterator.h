@@ -2,6 +2,7 @@
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_TILE_ACCESS_ITERATOR_H_
 
 #include "sputnik/block/cutlass/block_pitch_linear.h"
+#include "sputnik/block/cutlass/op.h"
 #include "sputnik/block/cutlass/type_utils.h"
 
 #include "cutlass/tensor_ref.h"
@@ -85,7 +86,7 @@ class BlockTileAccessIterator<
   // iterator with known block dimensions.
   struct Params {
     CUTLASS_HOST_DEVICE Params() {}
-    CUTLASS_HOST_DEVICE Params(Layout layout) {}
+    CUTLASS_HOST_DEVICE Params(Op op) {}
   };
 
  private:

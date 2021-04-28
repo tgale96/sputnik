@@ -2,12 +2,14 @@
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_GEMM_H_
 
 #include "sputnik/block/cutlass/block_pitch_linear.h"
+#include "sputnik/block/cutlass/op.h"
+
 #include "cutlass/gemm/kernel/gemm_universal.h"
 
 namespace sputnik {
 namespace block {
 namespace cutlass {
-
+  
 // Forward declare for Filter.
 template <
   typename Mma_,
@@ -79,7 +81,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
   
-  using RetParamsA = int;
+  using RetParamsA = Op;
   using RetParamsB = int;
   using RetOffsetA = int;
   using RetOffsetB = ::cutlass::MatrixCoord;
@@ -104,7 +106,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   
   CUTLASS_HOST_DEVICE
   static RetParamsA ParamsA(Arguments args) {
-    return args.op_A.ld;
+    return args.op_A;
   }
 
   CUTLASS_HOST_DEVICE
@@ -204,26 +206,6 @@ public:
   //
   // Structures
   //
-
-  // Operand structure.
-  struct Op {
-    void * data;
-    void * offsets;
-    void * indices;
-
-    int ld;
-    
-    CUTLASS_HOST_DEVICE
-    Op(void const *data_, void const *offsets_, void const *indices_, int ld_) :
-      data(const_cast<void*>(data_)),
-      offsets(const_cast<void*>(offsets_)),
-      indices(const_cast<void*>(indices_)),
-      ld(ld_) {}
-
-    CUTLASS_HOST_DEVICE
-    Op(void const *data_, int ld_) :
-      data(const_cast<void*>(data_)), offsets(nullptr), indices(nullptr), ld(ld_) {}
-  };
   
   /// Argument structure
   struct Arguments {
