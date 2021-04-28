@@ -9,6 +9,14 @@ namespace sputnik {
 namespace block {
 namespace cutlass {
 
+template <int Row, int Column, int Block>
+struct BlockMatrixShape {
+  static int const kRow = Row;
+  static int const kColumn = Column;
+  static int const kBlock = Block;
+  static int const kCount = Row * Column;
+};
+ 
 // Template defining shape used by block-sparse
 // pitch-linear matrices. Matrices are represented
 // in 4d: [rows // block, cols // block, block, block].

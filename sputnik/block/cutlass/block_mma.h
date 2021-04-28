@@ -4,6 +4,7 @@
 #include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "sputnik/block/cutlass/block_size.h"
 #include "sputnik/block/cutlass/block_tile_access_iterator.h"
+#include "sputnik/block/cutlass/dependent_tile_access_iterator.h"
 
 namespace sputnik {
 namespace block {
@@ -165,11 +166,14 @@ struct BlockMma<kBlockSize, ElementA, BlockRowMajor, kAlignmentA,
   // Define iterators over tiles from the B operand
   using ThreadMapB = typename MmaCore::IteratorThreadMapB;
   using AccessTypeB = ::cutlass::Array<ElementB, kAlignmentB>;
-  using IteratorB =
-    ::cutlass::transform::threadblock::PredicatedTileAccessIterator<
-    ::cutlass::MatrixShape<ThreadblockShape::kK, ThreadblockShape::kN>,
-    ElementB, LayoutB, 0, ThreadMapB, AccessTypeB>;
 
+  using ShapeB = BlockMatrixShape<
+    ThreadblockShape::kK,
+    ThreadblockShape::kN,
+    Block2Int<kBlockSize>::value>;
+  using IteratorB = DependentTileAccessIterator<
+    ShapeB, ElementB, LayoutB, 0, ThreadMapB, AccessTypeB>;
+  
   // Define the threadblock-scoped multistage matrix multiply
   using ThreadblockMma = ::cutlass::gemm::threadblock::MmaMultistage<
     typename MmaCore::Shape, IteratorA, typename MmaCore::SmemIteratorA,

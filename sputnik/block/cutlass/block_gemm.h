@@ -72,8 +72,6 @@ struct ConfigHelper {
   }
 };
 
-// TODO(tgale): Augment this to pass all information about a
-// matrix into the params.
 template <
   typename Gemm,
   typename LayoutB>
@@ -82,7 +80,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   using Params = typename Gemm::Params;
   
   using RetParamsA = Op;
-  using RetParamsB = int;
+  using RetParamsB = Op;
   using RetOffsetA = int;
   using RetOffsetB = ::cutlass::MatrixCoord;
 
@@ -111,7 +109,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
   CUTLASS_HOST_DEVICE
   static RetParamsB ParamsB(Arguments args) {
-    return args.op_B.ld;
+    return args.op_B;
   }
 
   CUTLASS_DEVICE
