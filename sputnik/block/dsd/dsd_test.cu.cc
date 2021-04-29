@@ -79,7 +79,15 @@ typedef ::testing::Types<
   Problem<128, 256, 8, 128*128, 128, true>,    // Two inner loops.
   Problem<256, 128, 8, 256*128, 128, true>,    // Two rows of blocks.
   Problem<128, 128, 512, 128*128, 128, true>,  // Two tile columns.
-  Problem<128, 256, 8, 128*128, 128, true>     // 50% sparse.  
+  Problem<128, 256, 8, 128*128, 128, true>,    // 50% sparse.
+  Problem<256, 256, 8, 256*128, 128, true>,     // 50% sparse, multi-row.
+  // Larger problems.
+  Problem<512, 512, 1024, 512*512, 128, true>,
+  Problem<512, 512, 1024, 256*512, 128, true>,
+  Problem<512, 512, 1024, 128*512, 128, true>,
+  Problem<1024, 1024, 1024, 1024*1024, 128, true>,
+  Problem<1024, 1024, 1024, 512*1024, 128, true>,
+  Problem<1024, 1024, 1024, 256*1024, 128, true>
   > TestProblems;
 
 TYPED_TEST_SUITE(DsdTest, TestProblems);
