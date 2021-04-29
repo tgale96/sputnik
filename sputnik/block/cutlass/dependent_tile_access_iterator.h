@@ -96,13 +96,14 @@ class DependentTileAccessIterator {
       params_(params),
       iteration_block_(0),
       current_offset_(-Shape::kBlock) {
-    // NOTE: This is pre-offset to the correct place by Config.
-    //
-    // TODO(tgale): Figure out how to handle this for the
+    // TODO(tgale): Figure out how to handle indices for the
     // transposed case. We likely need to sort the column
     // indices to get the block offsets anyways, so we could
     // probably still pass them in and have the correct
     // indices be contiguous.
+
+    // Offset to the first block.
+    add_block_offset();
   }
 
   CUTLASS_HOST_DEVICE
@@ -116,6 +117,19 @@ class DependentTileAccessIterator {
   }
 
   CUTLASS_DEVICE
+  void add_block_offset() {
+    int absolute_offset = (int)__ldg(params_.indices);
+    int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
+      
+    if (kAdvanceRank) relative_offset *= params_.stride;
+    iterator_.add_pointer_offset(relative_offset);
+      
+    // Update our current offset and pointer for next iteration.
+    current_offset_ = absolute_offset;
+    ++params_.indices;
+  }
+    
+  CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
     // TODO(tgale): This only supports advancing by a single
     // tile. Generalize this.
@@ -128,23 +142,10 @@ class DependentTileAccessIterator {
     //
     // TODO(tgale): Pipeline the loading of indices to avoid
     // the added latency.
-    if (iteration_block_ == 0) {
-      int absolute_offset = (int)__ldg(params_.indices);
-      int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
-
-      if (kAdvanceRank) relative_offset *= params_.stride;
-      iterator_.add_pointer_offset(relative_offset);
-      
-      // Update our current offset and pointer for next iteration.
-      current_offset_ = absolute_offset;
-      ++params_.indices;
-    }
-
-    // TODO(tgale): We could express this more succinctly
-    // with add and mod (as bitwise-and).
     ++iteration_block_;
     if (iteration_block_ >= kIterationsBlock) {
       iteration_block_ = 0;
+      add_block_offset();
     }
   }
 
