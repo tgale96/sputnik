@@ -60,34 +60,48 @@ class DsdTest : public ::testing::Test {
 };
 
 typedef ::testing::Types<
-  Problem<32, 32, 64, 32*32, 32>,   // Minimum problem size.
-  Problem<32, 64, 64, 32*64, 32>,   // Two inner loops.
-  Problem<64, 32, 64, 64*32, 32>,   // Two rows of blocks.
-  Problem<32, 32, 128, 32*32, 32>,  // Two tile columns.
-  Problem<32, 64, 64, 32*32, 32>,   // 50% sparse.
-  Problem<64, 64, 64, 32*64, 32>,   // 50% sparse, multi-row.
-  // Larger problems.
-  Problem<128, 128, 128, 32*128, 32>,
-  Problem<512, 512, 1024, 512*512, 32>,
-  Problem<512, 512, 1024, 256*512, 32>,
-  Problem<512, 512, 1024, 128*512, 32>,
-  Problem<1024, 1024, 1024, 1024*1024, 32>,
-  Problem<1024, 1024, 1024, 512*1024, 32>,
-  Problem<1024, 1024, 1024, 256*1024, 32>,
-  // Block 128 problems.
-  Problem<128, 128, 8, 128*128, 128, true>,    // Minimum problem size.
-  Problem<128, 256, 8, 128*128, 128, true>,    // Two inner loops.
-  Problem<256, 128, 8, 256*128, 128, true>,    // Two rows of blocks.
-  Problem<128, 128, 512, 128*128, 128, true>,  // Two tile columns.
-  Problem<128, 256, 8, 128*128, 128, true>,    // 50% sparse.
-  Problem<256, 256, 8, 256*128, 128, true>,     // 50% sparse, multi-row.
-  // Larger problems.
-  Problem<512, 512, 1024, 512*512, 128, true>,
-  Problem<512, 512, 1024, 256*512, 128, true>,
-  Problem<512, 512, 1024, 128*512, 128, true>,
-  Problem<1024, 1024, 1024, 1024*1024, 128, true>,
-  Problem<1024, 1024, 1024, 512*1024, 128, true>,
-  Problem<1024, 1024, 1024, 256*1024, 128, true>
+    Problem<32, 32, 64, 32*32, 32>,   // Minimum problem size.
+    Problem<32, 64, 64, 32*64, 32>,   // Two inner loops.
+    Problem<64, 32, 64, 64*32, 32>,   // Two rows of blocks.
+    Problem<32, 32, 128, 32*32, 32>,  // Two tile columns.
+    Problem<32, 64, 64, 32*32, 32>,   // 50% sparse.
+    Problem<64, 64, 64, 32*64, 32>,   // 50% sparse, multi-row.
+    // Larger problems.
+    Problem<128, 128, 128, 32*128, 32>,
+    Problem<512, 512, 1024, 512*512, 32>,
+    Problem<512, 512, 1024, 256*512, 32>,
+    Problem<512, 512, 1024, 128*512, 32>,
+    Problem<1024, 1024, 1024, 1024*1024, 32>,
+    Problem<1024, 1024, 1024, 512*1024, 32>,
+    Problem<1024, 1024, 1024, 256*1024, 32>,
+    // Block 128 problems NT.
+    Problem<128, 128, 8, 128*128, 128, true>,    // Minimum problem size.
+    Problem<128, 256, 8, 128*128, 128, true>,    // Two inner loops.
+    Problem<256, 128, 8, 256*128, 128, true>,    // Two rows of blocks.
+    Problem<128, 128, 512, 128*128, 128, true>,  // Two tile columns.
+    Problem<128, 256, 8, 128*128, 128, true>,    // 50% sparse.
+    Problem<256, 256, 8, 256*128, 128, true>,     // 50% sparse, multi-row.
+    // Block 128 problems NN.
+    Problem<128, 128, 8, 128*128, 128>,
+    Problem<128, 256, 8, 128*128, 128>,
+    Problem<256, 128, 8, 256*128, 128>,
+    Problem<128, 128, 512, 128*128, 128>,
+    Problem<128, 256, 8, 128*128, 128>,
+    Problem<256, 256, 8, 256*128, 128>,
+    // Larger problems.
+    Problem<512, 512, 1024, 512*512, 128, true>,
+    Problem<512, 512, 1024, 256*512, 128, true>,
+    Problem<512, 512, 1024, 128*512, 128, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true>,
+    // Larger problems.
+    Problem<512, 512, 1024, 512*512, 128>,
+    Problem<512, 512, 1024, 256*512, 128>,
+    Problem<512, 512, 1024, 128*512, 128>,
+    Problem<1024, 1024, 1024, 1024*1024, 128>,
+    Problem<1024, 1024, 1024, 512*1024, 128>,
+    Problem<1024, 1024, 1024, 256*1024, 128>
   > TestProblems;
 
 TYPED_TEST_SUITE(DsdTest, TestProblems);

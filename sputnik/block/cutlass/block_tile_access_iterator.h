@@ -19,7 +19,7 @@ template <
   typename ThreadMap_,
   typename AccessType_>
 class BlockTileAccessIterator;
-  
+
 // Specialization of BlockTileAccessIterator for AdvanceRank == 0
 // (i.e., movement through the compressed dimension).
 //
@@ -41,7 +41,7 @@ class BlockTileAccessIterator<
   ThreadMap_,
   AccessType_> {
  public:
-  
+
   using Shape = Shape_;
   using Element = Element_;
   using Layout = BlockPitchLinear;
@@ -52,7 +52,7 @@ class BlockTileAccessIterator<
   // TODO(tgale): Expose this as the layout argument and use
   // simple converters to get the shape right.
   using LayoutCvt = BlockRowMajor;
-  
+
   // TODO(tgale): Relax this constraint. We'd like to be able to use
   // smaller tile dimensions for cases that are occupancy limited.
   static_assert(Shape::kStrided == Shape::kBlock,
@@ -65,7 +65,7 @@ class BlockTileAccessIterator<
   static_assert(Shape::kBlock % Shape::kContiguous == 0,
 		"The block size must be divisible by the contiguous "
 		"tile dimension.");
-  
+
   using Index = typename Layout::Index;
   using LongIndex = typename Layout::LongIndex;
 
@@ -78,7 +78,7 @@ class BlockTileAccessIterator<
 
   static int const kAccessesPerVector = ThreadMap::kElementsPerAccess /
     AccessType::kElements;
-  
+
   static_assert(!(ThreadMap::kElementsPerAccess % AccessType::kElements),
     "Vectors implied by the thread map must be divisible by the access type.");
 
@@ -97,7 +97,7 @@ class BlockTileAccessIterator<
   // Make Params empty and update code to use these static
   // values.
   static const LongIndex kStride = Shape::kBlock;
-  
+
   static const LongIndex kIncStrided = Shape::kBlock *
     ThreadMap::Delta::kStrided *
     ::cutlass::sizeof_bits<Element>::value / 8;
@@ -122,14 +122,14 @@ class BlockTileAccessIterator<
   static const int kIncBlock = Shape::kBlock * Shape::kBlock *
     ::cutlass::sizeof_bits<Element>::value / 8 -
     (kIterationsBlock - 1) * kIncAdvance - kIncAdvance;
-      
+
   //
   /// Data members
   //
 
   // Single predicate used to stop after the last tile.
   bool predicate_;
-  
+
   // Internal pointer to first access of tile
   BytePointer pointer_;
 
@@ -147,7 +147,7 @@ class BlockTileAccessIterator<
 
   // Iteration inside a block.
   int iteration_block_;
-  
+
  public:
   /// Constructs a TileIterator from its precomputed state, threadblock offset,
   /// and thread ID
@@ -177,29 +177,11 @@ class BlockTileAccessIterator<
     predicate_ = true;
     iteration_block_ = 0;
     set_iteration_index(0);
-
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: block size %d\n",
-    //   	     threadIdx.x, Shape::kBlock);
-    //   printf("tid.x %d: kIncStrided %lld\n",
-    // 	     threadIdx.x, kIncStrided);
-    //   printf("tid.x %d: kIncNext %lld\n",
-    // 	     threadIdx.x, kIncNext);
-    //   printf("tid.x %d: kIncAdvance %lld\n",
-    // 	     threadIdx.x, kIncAdvance);
-    //   printf("tid.x %d: kIterationsBlock %d, kIncBlock %d\n",
-    // 	     threadIdx.x, kIterationsBlock, kIncBlock);
-    // }
-    
   }
 
   // Overrides the internal iteration index
   CUTLASS_HOST_DEVICE
   void set_iteration_index(int index) {
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: set_iteration_index(%d)\n",
-    // 	     threadIdx.x, index);
-    // }
     iteration_vector_ = index % kAccessesPerVector;
     int residual_access = index / kAccessesPerVector;
 
@@ -218,12 +200,6 @@ class BlockTileAccessIterator<
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
     const TensorCoord tile_offset = LayoutCvt::to_pitch_linear(tile_offset_);
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: add_tile_offset({%d, %d})\n",
-    // 	     threadIdx.x,
-    // 	     tile_offset.contiguous(),
-    // 	     tile_offset.strided());
-    // }
     pointer_ += kIncAdvance * LongIndex(tile_offset.contiguous());
 
     // TODO(tgale): Is this correct? Seems like we need an extra
@@ -244,22 +220,11 @@ class BlockTileAccessIterator<
   // Returns a pointer
   CUTLASS_HOST_DEVICE
   AccessType *get() const {
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: get() valid = %d\n",
-    // 	     threadIdx.x, (int)this->valid());
-    // }
     AccessType *out = reinterpret_cast<AccessType *>(
 	pointer_ +
 	iteration_contiguous_ *
 	(ThreadMap::Delta::kContiguous * ::cutlass::sizeof_bits<Element>::value) / 8) +
         iteration_vector_;
-    // if (threadIdx.x == 0) {
-    //   AccessType x = *out;
-    //   for (int i = 0; i < 8; ++i) {
-    // 	float x0 = (float)x[i];
-    // 	printf("tid.x %d: x[%d] = %f\n", threadIdx.x, i, x0);
-    //   }
-    // }
     return out;
   }
 
@@ -320,7 +285,7 @@ class BlockTileAccessIterator<
   CUTLASS_HOST_DEVICE
   void clear_mask() {
     predicate_ = false;
-  }  
+  }
 
 };
 
@@ -328,4 +293,4 @@ class BlockTileAccessIterator<
 }  // namespace block
 }  // namespace sputnik
 
-#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_TILE_ACCESS_ITERATOR_H_ 
+#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_TILE_ACCESS_ITERATOR_H_

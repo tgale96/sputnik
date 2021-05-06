@@ -40,8 +40,10 @@ class DependentTileAccessIterator {
   static const int kAccessesPerVector = Iterator::kAccessesPerVector;
   
   // The number of tiles in each sparse block.
-  static const int kIterationsBlock = Shape::kBlock /
-    Iterator::UnderlyingIterator::Shape::kContiguous;
+  static const int kIterationsBlock =
+      kAdvanceRank ?
+      Shape::kBlock / Iterator::UnderlyingIterator::Shape::kStrided :
+      Shape::kBlock / Iterator::UnderlyingIterator::Shape::kContiguous;
 
   // Pointer type.
   using Pointer = typename Iterator::Pointer;
@@ -120,15 +122,15 @@ class DependentTileAccessIterator {
   void add_block_offset() {
     int absolute_offset = (int)__ldg(params_.indices);
     int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
-      
+
     if (kAdvanceRank) relative_offset *= params_.stride;
     iterator_.add_pointer_offset(relative_offset);
-      
+
     // Update our current offset and pointer for next iteration.
     current_offset_ = absolute_offset;
     ++params_.indices;
   }
-    
+
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
     // TODO(tgale): This only supports advancing by a single
@@ -155,7 +157,7 @@ class DependentTileAccessIterator {
   }
 
   CUTLASS_HOST_DEVICE
-  DependentTileAccessIterator &operator++() {     
+  DependentTileAccessIterator &operator++() {
     ++iterator_;
     return *this;
   }

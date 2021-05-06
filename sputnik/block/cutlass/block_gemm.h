@@ -161,14 +161,14 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
     };
     return tb_offset_B;
   }
-			    
+
   CUTLASS_DEVICE
   int StepsK() const {
-    int nnz_cols_a = nnz_a / Gemm::Mma::IteratorA::Shape::kBlock;    
+    int nnz_cols_a = nnz_a / Gemm::Mma::IteratorA::Shape::kBlock;
     return (nnz_cols_a + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
-  }  
-};  
-  
+  }
+};
+
 // Helper to handle mixes of sparse and dense arguments.
 template <typename Mma_, typename Epilogue_, typename ThreadblockSwizzle_>
 struct Config {
@@ -462,10 +462,10 @@ public:
 
     // Compute threadblock-scoped matrix multiply-add
     mma(
-      gemm_k_iterations, 
-      accumulators, 
-      iterator_A, 
-      iterator_B, 
+      gemm_k_iterations,
+      accumulators,
+      iterator_A,
+      iterator_B,
       accumulators);
 
     //

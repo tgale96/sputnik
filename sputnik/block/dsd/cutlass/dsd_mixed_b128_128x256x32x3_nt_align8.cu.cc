@@ -7,10 +7,10 @@
 namespace sputnik {
 namespace block {
 namespace cutlass {
-    
+
 namespace {
 
-using dsd_mixed_b128_128x256x32x3_nt_align8_base = 
+using dsd_mixed_b128_128x256x32x3_nt_align8_base =
   typename DefaultBlockGemm<
   BlockSize::k128,
   // Non-transposed A operand.
@@ -37,14 +37,15 @@ using dsd_mixed_b128_128x256x32x3_nt_align8_base =
 >::GemmKernel;
 
 // Define named type
-struct dsd_mixed_b128_128x256x32x3_nt_align8 : 
+struct dsd_mixed_b128_128x256x32x3_nt_align8 :
   public dsd_mixed_b128_128x256x32x3_nt_align8_base { };
-  
+
 }  // namespace
 
 
 bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
-  int m, int k, int n, int nonzeros, int block_dim) {
+    int m, int k, int n, int nonzeros, int block_dim,
+    bool transpose_a, bool transpose_b) {
   using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
 
   Dsd::Arguments args({m, n, k},
@@ -56,9 +57,10 @@ bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
 
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Dsd::KernelFn::can_implement(args);
-  return status == ::cutlass::Status::kSuccess && block_dim == 128;
+  bool can_implement = block_dim == 128 && !transpose_a && transpose_b;
+  return status == ::cutlass::Status::kSuccess && can_implement;
 }
-  
+
 cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
     int m, int k, int n,
     int nonzeros, int block_dim,
@@ -81,8 +83,8 @@ cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
   if (status != ::cutlass::Status::kSuccess) {
     return cudaErrorNotSupported;
   }
-  
-  Dsd dsd_operator;  
+
+  Dsd dsd_operator;
   return dsd_operator(args, stream);
 }
 
