@@ -61,10 +61,29 @@ void BM_Dsd(benchmark::State& state) {
   // Create the output matrix on gpu & gpu.
   CudaMatrix<half> out(kDimM, kDimN, &generator);
 
-  int iterations = 10;
+  int iterations = 100;
+  int warmup_iterations = 10;
+  int sleep_duration = 50;
   while (state.KeepRunningBatch(iterations)) {
     Timer timer;
 
+    // Cool down.
+    usleep(sleep_duration * 1000);
+    
+    // Warmup.
+    for (int i = 0; i < warmup_iterations; ++i) {
+      CUDA_CALL(Dsd(
+          kDimM, kDimK, kDimN,
+          lhs.NumElementsWithPadding(),
+          kBlockDim,
+          lhs.Values(),
+          lhs.RowOffsets(),
+          lhs.ColumnIndices(),
+          rhs.Values(), kTransposeB,
+          out.Values(), 0));
+    }
+
+    // Timed iterations.
     timer.start(0);
     for (int i = 0; i < iterations; ++i) {
       CUDA_CALL(Dsd(
