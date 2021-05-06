@@ -15,13 +15,14 @@
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/dsd/dsd.h"
 #include "sputnik/block/matrix_utils.h"
+#include "sputnik/timer.h"
 
 #include "absl/random/random.h"
 #include "benchmark/benchmark.h"
 
 namespace sputnik {
 namespace block {
-    
+
 int RoundUp(int x, int b) {
   return (x + b - 1) / b * b;
 }
@@ -31,13 +32,11 @@ void BenchmarkArgs(benchmark::internal::Benchmark* b) {
   for (int i = 0; i < 31; ++i) {
     dims.push_back(512 + i * 256);
   }
-  // std::vector<int> dims = {8192};
-  
   std::vector<float> sparsities = {1.0f};
 
   for (const auto& d : dims) {
     for (const auto& s : sparsities) {
-      b->Args({d, d, d, RoundUp(static_cast<int>(d * d * s), 32*32)});
+      b->Args({d, d, d, RoundUp((int)d * d * s, 128*128)});
     }
   }
 }
@@ -47,45 +46,51 @@ void BM_Dsd(benchmark::State& state) {
   const int kDimK = state.range(1);
   const int kDimN = state.range(2);
   const int kNonZeros = state.range(3);
-  const int kBlockDim = 32;
-  const bool kTransposeB = false;
-  
+  const int kBlockDim = 128;
+  const bool kTransposeB = true;
+
   // Create the sparse matrix on cpu & gpu.
   absl::BitGen generator;
-  CudaBlockSparseMatrix<half> sparse_matrix(
+  CudaBlockSparseMatrix<half> lhs(
       kDimM, kDimK, kNonZeros, kBlockDim,
       RANDOM_UNIFORM, &generator, /*pad_rows_to=*/1);
 
   // Create the dense matrix on cpu & gpu
-  CudaMatrix<half> matrix(kDimK, kDimN, &generator);
+  CudaMatrix<half> rhs(kDimN, kDimK, &generator);
 
   // Create the output matrix on gpu & gpu.
-  CudaMatrix<half> output_matrix(kDimM, kDimN, &generator);
+  CudaMatrix<half> out(kDimM, kDimN, &generator);
 
-  int batch_size = 10;
-  while (state.KeepRunningBatch(batch_size)) {
-    for (int i = 0; i < batch_size; ++i) {
+  int iterations = 10;
+  while (state.KeepRunningBatch(iterations)) {
+    Timer timer;
+
+    timer.start(0);
+    for (int i = 0; i < iterations; ++i) {
       CUDA_CALL(Dsd(
           kDimM, kDimK, kDimN,
-          sparse_matrix.NumElementsWithPadding(),
+          lhs.NumElementsWithPadding(),
           kBlockDim,
-          sparse_matrix.Values(),
-          sparse_matrix.RowOffsets(),
-          sparse_matrix.ColumnIndices(),
-          matrix.Values(), kTransposeB,
-          output_matrix.Values(), 0));
+          lhs.Values(),
+          lhs.RowOffsets(),
+          lhs.ColumnIndices(),
+          rhs.Values(), kTransposeB,
+          out.Values(), 0));
     }
-    CUDA_CALL(cudaStreamSynchronize(0));
+    timer.stop(0);
+    state.SetIterationTime(timer.duration() / 1e3);
   }
 
   // Report throughput.
-  state.SetBytesProcessed(
-      static_cast<int64_t>(state.iterations()) *
-      sparse_matrix.NumElementsWithPadding() *
-      kBlockDim * kBlockDim * kDimN * 2);
+  int64_t flops = (int64_t)state.iterations() *
+                  lhs.NumElementsWithPadding() *
+                  kBlockDim * kBlockDim * kDimN * 2;
+  state.counters["FLOPS"] = benchmark::Counter(
+      flops, benchmark::Counter::kIsRate,
+      benchmark::Counter::OneK::kIs1000);
 }
 
-BENCHMARK(BM_Dsd)->Apply(BenchmarkArgs)->UseRealTime();
+BENCHMARK(BM_Dsd)->Apply(BenchmarkArgs)->UseManualTime();
 
 }  // namespace block
 }  // namespace sputnik

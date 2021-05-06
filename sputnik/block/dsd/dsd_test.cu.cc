@@ -98,10 +98,10 @@ TYPED_TEST(DsdTest, Dsd) {
       this->kDimM, this->kDimK,
       this->kNonZeros, this->kBlockDim,
       RANDOM_UNIFORM, &this->generator_,
-      /*pad_rows_to=*/1);  
+      /*pad_rows_to=*/1);
   Matrix lhs = ToMatrix(lhs_);
   CudaBlockSparseMatrix<half> lhs_gpu(lhs_);
-  
+
   // Create the dense matrix on cpu & gpu
   int odb = this->kTransposeB ? this->kDimN : this->kDimK;
   int ldb = this->kTransposeB ? this->kDimK : this->kDimN;
@@ -110,7 +110,7 @@ TYPED_TEST(DsdTest, Dsd) {
 
   // Create the output matrix on gpu & gpu.
   CudaMatrix<half> out_gpu(this->kDimM, this->kDimN, &this->generator_);
-  
+
   // Run the gpu kernel.
   CUDA_CALL(Dsd(this->kDimM, this->kDimK, this->kDimN,
 		lhs_gpu.NumElementsWithPadding(),
@@ -123,7 +123,7 @@ TYPED_TEST(DsdTest, Dsd) {
 
   // Verify the results.
   Matrix out = this->kTransposeB ? lhs * rhs.T() : lhs * rhs;
-  Matrix results(out_gpu);  
+  Matrix results(out_gpu);
   auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
   ASSERT_THAT(ToVector(results), comparator);
 }
