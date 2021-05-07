@@ -69,32 +69,20 @@ void BM_Dsd(benchmark::State& state) {
 
     // Cool down.
     usleep(sleep_duration * 1000);
-    
+
     // Warmup.
     for (int i = 0; i < warmup_iterations; ++i) {
-      CUDA_CALL(Dsd(
-          kDimM, kDimK, kDimN,
-          lhs.NumElementsWithPadding(),
-          kBlockDim,
-          lhs.Values(),
-          lhs.RowOffsets(),
-          lhs.ColumnIndices(),
-          rhs.Values(), kTransposeB,
-          out.Values(), 0));
+      CUDA_CALL(Matmul(Arg(lhs), /*transpose_a=*/false,
+                       Arg(rhs), kTransposeB,
+                       Arg(out), /*stream=*/0));
     }
 
     // Timed iterations.
     timer.start(0);
     for (int i = 0; i < iterations; ++i) {
-      CUDA_CALL(Dsd(
-          kDimM, kDimK, kDimN,
-          lhs.NumElementsWithPadding(),
-          kBlockDim,
-          lhs.Values(),
-          lhs.RowOffsets(),
-          lhs.ColumnIndices(),
-          rhs.Values(), kTransposeB,
-          out.Values(), 0));
+      CUDA_CALL(Matmul(Arg(lhs), /*transpose_a=*/false,
+                       Arg(rhs), kTransposeB,
+                       Arg(out), /*stream=*/0));
     }
     timer.stop(0);
     state.SetIterationTime(timer.duration() / 1e3);

@@ -1,10 +1,12 @@
 #ifndef THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_MMA_H_
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_MMA_H_
 
+#include "sputnik/block/arguments.h"
 #include "sputnik/block/cutlass/block_pitch_linear.h"
-#include "sputnik/block/cutlass/block_size.h"
 #include "sputnik/block/cutlass/block_tile_access_iterator.h"
 #include "sputnik/block/cutlass/dependent_tile_access_iterator.h"
+
+#include "cutlass/gemm/threadblock/default_mma.h"
 
 namespace sputnik {
 namespace block {
@@ -159,7 +161,7 @@ struct BlockMma<kBlockSize, ElementA, BlockRowMajor, kAlignmentA,
   using ShapeA = BlockPitchLinearShape<
     ThreadblockShape::kK,
     ThreadblockShape::kM,
-    Block2Int<kBlockSize>::value>;
+    AsInt<kBlockSize>::value>;
   using IteratorA = BlockTileAccessIterator<
     ShapeA, ElementA, 0, ThreadMapA, AccessTypeA>;
 
@@ -170,10 +172,10 @@ struct BlockMma<kBlockSize, ElementA, BlockRowMajor, kAlignmentA,
   using ShapeB = BlockMatrixShape<
     ThreadblockShape::kK,
     ThreadblockShape::kN,
-    Block2Int<kBlockSize>::value>;
+    AsInt<kBlockSize>::value>;
   using IteratorB = DependentTileAccessIterator<
     ShapeB, ElementB, LayoutB, 0, ThreadMapB, AccessTypeB>;
-  
+
   // Define the threadblock-scoped multistage matrix multiply
   using ThreadblockMma = ::cutlass::gemm::threadblock::MmaMultistage<
     typename MmaCore::Shape, IteratorA, typename MmaCore::SmemIteratorA,

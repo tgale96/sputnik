@@ -1,6 +1,5 @@
 #include "sputnik/block/dsd/cutlass/dsd.h"
 #include "sputnik/block/cutlass/block_pitch_linear.h"
-#include "sputnik/block/cutlass/block_size.h"
 #include "sputnik/block/cutlass/default_block_gemm.h"
 #include "sputnik/block/cutlass/kernel.h"
 
@@ -91,5 +90,3 @@ cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
 }  // namespace cutlass
 }  // namespace block
 }  // namespace sputnik
-
-

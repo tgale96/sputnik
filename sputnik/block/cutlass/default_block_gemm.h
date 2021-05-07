@@ -1,14 +1,16 @@
 #ifndef THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_DEFAULT_BLOCK_GEMM_H_
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_DEFAULT_BLOCK_GEMM_H_
 
-#include "cutlass/gemm/kernel/default_gemm.h"
+#include "sputnik/block/arguments.h"
 #include "sputnik/block/cutlass/block_gemm.h"
 #include "sputnik/block/cutlass/block_mma.h"
+
+#include "cutlass/gemm/kernel/default_gemm.h"
 
 namespace sputnik {
 namespace block {
 namespace cutlass {
-  
+
 template <
   // Block size for sparse operands.
   BlockSize kBlockSize,
@@ -58,7 +60,7 @@ struct DefaultBlockGemm {
 		OperatorClass, ::cutlass::arch::OpClassTensorOp>::value);
   static_assert(::cutlass::platform::is_same<
 		LayoutC, ::cutlass::layout::RowMajor>::value);
-  
+
   using Mma = typename BlockMma<
     kBlockSize, ElementA, LayoutA, kAlignmentA, ElementB,
     LayoutB, kAlignmentB, ElementAccumulator, ::cutlass::layout::RowMajor,
@@ -68,12 +70,12 @@ struct DefaultBlockGemm {
 
   static_assert(WarpShape::kK == ThreadblockShape::kK,
 		"Split-k not supported.");
-  
+
   using Epilogue =
     typename ::cutlass::epilogue::threadblock::DefaultEpilogueTensorOp<
     ThreadblockShape, typename Mma::Operator, /*kPartitionsK=*/1,
     EpilogueOutputOp, EpilogueOutputOp::kCount>::Epilogue;
-  
+
   using GemmKernel = BlockGemm<Mma, Epilogue, ThreadblockSwizzle>;
 };
 

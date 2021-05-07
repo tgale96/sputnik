@@ -2,6 +2,7 @@
 #define THIRD_PARTY_SPUTNIK_BLOCK_MATRIX_UTILS_H_
 
 #include "sputnik/matrix_utils.h"
+#include "sputnik/block/arguments.h"
 
 namespace sputnik {
 
@@ -97,7 +98,7 @@ inline Matrix ToMatrix(const BlockSparseMatrix &x) {
 	  out[row_idx * cols + col_idx] = v;
 	}
       }
-      
+
     }
   }
 
@@ -105,7 +106,24 @@ inline Matrix ToMatrix(const BlockSparseMatrix &x) {
   std::memcpy(ret.Values(), out.data(), n*sizeof(float));
   return ret;
 }
- 
+
+template <typename T>
+inline block::BlockMatrix Arg(const CudaBlockSparseMatrix<T> &m) {
+  block::BlockMatrix out(m.Rows(), m.Columns(),
+                         block::AsBlockSize(m.BlockDim()),
+                         m.NumElementsWithPadding(),
+                         (const void*)m.Values(),
+                         (const void*)m.RowOffsets(),
+                         (const void*)m.ColumnIndices());
+  return out;
+}
+
+template <typename T>
+inline block::Matrix Arg(const CudaMatrix<T> &m) {
+  block::Matrix out(m.Rows(), m.Columns(), (const void*)m.Values());
+  return out;
+}
+
 }  // namespace sputnik
 
 #endif  // THIRD_PARTY_SPUTNIK_BLOCK_MATRIX_UTILS_H_

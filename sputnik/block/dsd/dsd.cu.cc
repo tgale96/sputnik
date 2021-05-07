@@ -6,14 +6,13 @@
 
 namespace sputnik {
 namespace block {
-  
-cudaError_t Dsd(int m, int k, int n,
-		int nonzeros, int block_dim,
-		const half* a,
-		const int* offsets_a,
-		const short* indices_a,
-		const half* b, bool transpose_b,
-		half* c, cudaStream_t stream) {  
+
+cudaError_t Matmul(const BlockMatrix a,
+                   bool transpose_a,
+                   const Matrix b,
+                   bool transpose_b,
+                   Matrix c,
+                   cudaStream_t stream) {
   // TODO(tgale): Figure out a way to identify what platform
   // we're going to issue to and launch the appropriate kernel.
   //
@@ -23,15 +22,18 @@ cudaError_t Dsd(int m, int k, int n,
   // We can achieve both of these goals by registering all
   // kernels available, filtering based on problem properties
   // and then auto-tuning and caching the results.
-  if (block_dim == 32) {
-    return sm80::Dsd(m, k, n, nonzeros, block_dim,
-		     a, offsets_a, indices_a,
-		     b, transpose_b, c, stream);
-  } else if (block_dim == 128) {
-    // TODO(tgale): Expose the transpose operation for rhs.
-    return cutlass::Dsd(m, k, n, nonzeros, block_dim,
-			a, offsets_a, indices_a,
-			b, transpose_b, c, stream);
+  CHECK_EQ(transpose_a, false) << "Not yet supported";
+  int m = transpose_a ? a.cols : a.rows;
+  int k = transpose_a ? a.rows : a.cols;
+  int n = transpose_b ? b.rows : b.cols;
+  if (a.block_size == BlockSize::k32) {
+    return sm80::Dsd(m, k, n, a.nonzeros, AsInt(a.block_size),
+		     (half*)a.data, (int*)a.offsets, (short*)a.indices,
+                     (half*)b.data, transpose_b, (half*)c.data, stream);
+  } else if (a.block_size == BlockSize::k128) {
+    return cutlass::Dsd(m, k, n, a.nonzeros, AsInt(a.block_size),
+                        (half*)a.data, (int*)a.offsets, (short*)a.indices,
+                        (half*)b.data, transpose_b, (half*)c.data, stream);
   }
   return cudaErrorNotYetImplemented;
 }

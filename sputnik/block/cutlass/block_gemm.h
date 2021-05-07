@@ -5,7 +5,7 @@
 #include "sputnik/block/cutlass/op.h"
 #include "sputnik/block/cutlass/type_utils.h"
 
-#include "cutlass/gemm/kernel/gemm_universal.h"
+#include "cutlass/gemm/kernel/gemm.h"
 
 namespace sputnik {
 namespace block {
@@ -139,6 +139,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
   CUTLASS_DEVICE
   ParamsA UpdateParamsA(ParamsA const &params) const {
+    // TODO(tgale): Offset the block_offset pointer here.
     return params;
   }
   

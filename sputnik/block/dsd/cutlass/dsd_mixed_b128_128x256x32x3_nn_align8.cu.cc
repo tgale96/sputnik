@@ -1,6 +1,5 @@
 #include "sputnik/block/dsd/cutlass/dsd.h"
 #include "sputnik/block/cutlass/block_pitch_linear.h"
-#include "sputnik/block/cutlass/block_size.h"
 #include "sputnik/block/cutlass/default_block_gemm.h"
 #include "sputnik/block/cutlass/kernel.h"
 
