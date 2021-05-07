@@ -12,16 +12,7 @@ namespace sputnik {
 namespace block {
 namespace cutlass {
 
-template <
-  typename Shape_,  // BlockPitchLinearShape
-  typename Element_,
-  int AdvanceRank_,
-  typename ThreadMap_,
-  typename AccessType_>
-class BlockTileAccessIterator;
-
-// Specialization of BlockTileAccessIterator for AdvanceRank == 0
-// (i.e., movement through the compressed dimension).
+// Iterator for block-sparse matrices.
 //
 // We have two key differences from a PredicatedTileAccessIterator
 // 1. We never have a residue tile.
@@ -30,22 +21,18 @@ class BlockTileAccessIterator;
 // Thus, we don't need any predicates and don't need to worry
 // about residue handling.
 template <
-  typename Shape_,  // BlockPitchLinearShape
-  typename Element_,
-  typename ThreadMap_,
-  typename AccessType_>
-class BlockTileAccessIterator<
-  Shape_,
-  Element_,
-  /*AdvanceRank=*/0,
-  ThreadMap_,
-  AccessType_> {
+    typename Shape_,  // BlockPitchLinearShape
+    typename Element_,
+    int AdvanceRank_,
+    typename ThreadMap_,
+    typename AccessType_>
+class BlockTileAccessIterator {
  public:
 
   using Shape = Shape_;
   using Element = Element_;
   using Layout = BlockPitchLinear;
-  static int const kAdvanceRank = 0;  // Contiguous dimension.
+  static int const kAdvanceRank = AdvanceRank_;
   using ThreadMap = ThreadMap_;
   using AccessType = AccessType_;
 
@@ -55,16 +42,23 @@ class BlockTileAccessIterator<
 
   // TODO(tgale): Relax this constraint. We'd like to be able to use
   // smaller tile dimensions for cases that are occupancy limited.
-  static_assert(Shape::kStrided == Shape::kBlock,
-		"The strided tile dimension must equal the block size.");
+  static_assert(kAdvanceRank ?
+                Shape::kContiguous == Shape::kBlock :
+                Shape::kStrided == Shape::kBlock,
+		"The outer tile dimension must equal the block size.");
   // TODO(tgale): Relax this constraint. For small/medium block sizes
   // we'd like to pack multiple blocks into one mma tile.
-  static_assert(Shape::kContiguous <= Shape::kBlock,
-		"The contiguous tile dimension must be less-than or "
+  static_assert(kAdvanceRank ?
+                Shape::kStrided <= Shape::kBlock :
+                Shape::kContiguous <= Shape::kBlock,
+		"The advance rank tile dimension must be less-than or "
 		"equal to the blocks size.");
   static_assert(Shape::kBlock % Shape::kContiguous == 0,
 		"The block size must be divisible by the contiguous "
 		"tile dimension.");
+  static_assert(Shape::kBlock % Shape::kStrided == 0,
+                "The block size must be divisible by the strided "
+                "tile dimension.");
 
   using Index = typename Layout::Index;
   using LongIndex = typename Layout::LongIndex;
@@ -82,46 +76,55 @@ class BlockTileAccessIterator<
   static_assert(!(ThreadMap::kElementsPerAccess % AccessType::kElements),
     "Vectors implied by the thread map must be divisible by the access type.");
 
+  // Matrix meta-data type.
+  using Meta = typename Type<Element>::Meta;
+
   // NOTE: All increments are statically computable for block-sparse
   // iterator with known block dimensions.
   struct Params {
-    CUTLASS_HOST_DEVICE Params() {}
-    CUTLASS_HOST_DEVICE Params(Op op) {}
+    Meta *block_offsets;
+
+    CUTLASS_HOST_DEVICE Params()
+        : block_offsets(nullptr) {}
+    CUTLASS_HOST_DEVICE Params(Op op)
+        : block_offsets((Meta*)op.block_offsets) {}
   };
 
  private:
   /// Internal pointer type permits fast address arithmetic
   using BytePointer = char *;
 
-  // TODO(tgale): Update these names to use constant naming.
-  // Make Params empty and update code to use these static
-  // values.
+  static const int kElementBytes = ::cutlass::sizeof_bits<Element>::value / 8;
+
   static const LongIndex kStride = Shape::kBlock;
 
+  // TODO(tgale): Do we need to alter this for differen advance rank?
   static const LongIndex kIncStrided = Shape::kBlock *
-    ThreadMap::Delta::kStrided *
-    ::cutlass::sizeof_bits<Element>::value / 8;
+    ThreadMap::Delta::kStrided * kElementBytes;
 
   // Advance to the next tile in the block.
-  static const LongIndex kIncAdvance = Shape::kContiguous *
-    ::cutlass::sizeof_bits<Element>::value / 8;
+  static const LongIndex kIncAdvance =
+      kAdvanceRank ?
+      Shape::kStrided * kStride * kElementBytes :
+      Shape::kContiguous * kElementBytes;
 
   static const LongIndex kIncNext = kIncAdvance -
     LongIndex(ThreadMap::Iterations::kStrided - 1) *
     ThreadMap::Delta::kStrided * LongIndex(kStride) *
-    ::cutlass::sizeof_bits<Element>::value / 8;
+    kElementBytes;
 
   // TODO(tgale): Use our Index/LongIndex types for these
   // values.
   //
   // The number of tiles in each sparse block.
-  static const int kIterationsBlock = Shape::kBlock /
-    Shape::kContiguous;
+  static const int kIterationsBlock =
+      kAdvanceRank ?
+      Shape::kBlock / Shape::kStrided :
+      Shape::kBlock / Shape::kContiguous;
 
   // Increment to the next block.
   static const int kIncBlock = Shape::kBlock * Shape::kBlock *
-    ::cutlass::sizeof_bits<Element>::value / 8 -
-    (kIterationsBlock - 1) * kIncAdvance - kIncAdvance;
+    kElementBytes - (kIterationsBlock - 1) * kIncAdvance - kIncAdvance;
 
   //
   /// Data members
@@ -148,6 +151,12 @@ class BlockTileAccessIterator<
   // Iteration inside a block.
   int iteration_block_;
 
+  // Current block offset.
+  int current_offset_;
+
+  // Iterator parameters.
+  Params params_;
+
  public:
   /// Constructs a TileIterator from its precomputed state, threadblock offset,
   /// and thread ID
@@ -165,18 +174,27 @@ class BlockTileAccessIterator<
       int block_row_offset)
       : pointer_(reinterpret_cast<BytePointer>(
             const_cast<NonConstPointer>(pointer))),
-        extent_(extent) {
-    // TODO(tgale): Add threadblock_offset to pointer. If we want
-    // to support starting at different column block.
+        extent_(extent), current_offset_(0), params_(params) {
+    // TODO(tgale): Do we need to possibly transpose this initial
+    // coordinate?
     //
     // Add thread offset to pointer.
     Layout layout(kStride);
     const TensorCoord thread_offset = ThreadMap::initial_offset(thread_id);
-    add_pointer_offset(layout(thread_offset) + block_row_offset);
+    add_pointer_offset(layout(thread_offset));
 
     predicate_ = true;
     iteration_block_ = 0;
     set_iteration_index(0);
+
+    if (kAdvanceRank) {
+      // TODO(tgale): Offset the block_offsets to the start for this block.
+      //
+      // Offset to the first block.
+      add_block_offset();
+    } else {
+      add_pointer_offset(block_row_offset);
+    }
   }
 
   // Overrides the internal iteration index
@@ -187,33 +205,51 @@ class BlockTileAccessIterator<
 
     iteration_contiguous_ = residual_access % ThreadMap::Iterations::kContiguous;
     iteration_strided_ = residual_access / ThreadMap::Iterations::kContiguous;
-
   }
 
   // Adds a pointer offset in units of Element
   CUTLASS_HOST_DEVICE
   void add_pointer_offset(LongIndex pointer_offset) {
-    pointer_ += ::cutlass::sizeof_bits<Element>::value * pointer_offset / 8;
+    pointer_ += kElementBytes * pointer_offset;
+  }
+
+  CUTLASS_DEVICE
+  void add_block_offset() {
+    int absolute_offset = (int)__ldg(params_.block_offsets);
+    int relative_offset = absolute_offset - current_offset_;
+    add_pointer_offset(relative_offset);
+
+    // Update our current offset and pointer for next iteration.
+    current_offset_ = absolute_offset;
+    ++params_.block_offsets;
   }
 
   // Advances an iterator along logical dimensions of matrix in units of whole tiles
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
-    const TensorCoord tile_offset = LayoutCvt::to_pitch_linear(tile_offset_);
-    pointer_ += kIncAdvance * LongIndex(tile_offset.contiguous());
+    if (kAdvanceRank) {
+      ++iteration_block_;
+      if (iteration_block_ >= kIterationsBlock) {
+        iteration_block_ = 0;
+        add_block_offset();
+      }
+    } else {
+      const TensorCoord tile_offset = LayoutCvt::to_pitch_linear(tile_offset_);
+      pointer_ += kIncAdvance * LongIndex(tile_offset.contiguous());
 
-    // TODO(tgale): Is this correct? Seems like we need an extra
-    // factor to get the full block size moving in the strided
-    // dimension.
-    pointer_ += Shape::kStrided * tile_offset.strided();
+      // TODO(tgale): Is this correct? Seems like we need an extra
+      // factor to get the full block size moving in the strided
+      // dimension.
+      pointer_ += Shape::kStrided * tile_offset.strided();
 
-    // TODO(tgale): This doesn't support increments in the strided
-    // dimension and also doesn't support increments of greater than
-    // one tile.
-    ++iteration_block_;
-    if (iteration_block_ >= kIterationsBlock) {
-      iteration_block_ = 0;
-      pointer_ += kIncBlock;
+      // TODO(tgale): This doesn't support increments in the strided
+      // dimension and also doesn't support increments of greater than
+      // one tile.
+      ++iteration_block_;
+      if (iteration_block_ >= kIterationsBlock) {
+        iteration_block_ = 0;
+        pointer_ += kIncBlock;
+      }
     }
   }
 

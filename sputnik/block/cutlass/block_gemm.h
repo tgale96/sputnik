@@ -78,7 +78,7 @@ struct ConfigHelper {
     };
     return tb_offset_B;
   }
-			    
+
   CUTLASS_DEVICE
   int StepsK() const {
     return (params.problem_size.k() + Gemm::Mma::Shape::kK - 1) /
