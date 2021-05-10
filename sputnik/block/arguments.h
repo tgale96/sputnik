@@ -100,6 +100,46 @@ struct Matrix {
         data(const_cast<void*>(data_)) {}
 };
 
+struct MatmulShape {
+  int m, n, k, lda, ldb, ldc;
+
+  MatmulShape(
+      int m_, int n_, int k_,
+      bool transpose_a, bool transpose_b)
+      : m(m_), n(n_), k(k_) {
+    lda = transpose_a ? m : k;
+    ldb = transpose_b ? k : n;
+    ldc = n;
+  }
+
+  // TODO(tgale): Overload for different argument types.
+  MatmulShape(const BlockMatrix a, bool transpose_a,
+              const Matrix b, bool transpose_b) {
+    m = transpose_a ? a.cols : a.rows;
+    k = transpose_a ? a.rows : a.cols;
+    n = transpose_b ? b.rows : b.cols;
+    lda = transpose_a ? m : k;
+    ldb = transpose_b ? k : n;
+    ldc = n;
+  }
+};
+
+// TODO(tgale): Overload for different argument types.
+inline bool ValidMatmul(
+    const BlockMatrix a, bool transpose_a,
+    const Matrix b, bool transpose_b, Matrix c) {
+  MatmulShape shape(a, transpose_a, b, transpose_b);
+
+  bool valid = true;
+  valid &= (transpose_a ? a.cols : a.rows) == shape.m;
+  valid &= (transpose_a ? a.rows : a.cols) == shape.k;
+  valid &= (transpose_b ? b.cols : b.rows) == shape.k;
+  valid &= (transpose_b ? b.rows : b.cols) == shape.n;
+  valid &= c.rows == shape.m;
+  valid &= c.cols == shape.n;
+  return valid;
+}
+
 }  // namespace block
 }  // namespace sputnik
 

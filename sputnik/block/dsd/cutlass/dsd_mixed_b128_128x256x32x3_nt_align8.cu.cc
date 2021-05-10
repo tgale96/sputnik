@@ -41,41 +41,42 @@ struct dsd_mixed_b128_128x256x32x3_nt_align8 :
 
 }  // namespace
 
-
 bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
-    int m, int k, int n, int nonzeros, int block_dim,
-    bool transpose_a, bool transpose_b) {
+    const BlockMatrix a, bool transpose_a,
+    const Matrix b, bool transpose_b, Matrix c) {
   using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
 
-  Dsd::Arguments args({m, n, k},
-		      {1.0f, 0.0f},
-		      {nullptr, 0},
-		      {nullptr, 0},
-		      {nullptr, 0},
-		      {nullptr, 0});
+  MatmulShape shape(a, transpose_a, b, transpose_b);
+  Dsd::Arguments args({shape.m, shape.n, shape.k},
+                      {1.0f, 0.0f},
+                      {nullptr, 0},
+                      {nullptr, 0},
+                      {nullptr, 0},
+                      {nullptr, 0});
 
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Dsd::KernelFn::can_implement(args);
-  bool can_implement = block_dim == 128 && !transpose_a && transpose_b;
-  return status == ::cutlass::Status::kSuccess && can_implement;
+  bool can_implement = status == ::cutlass::Status::kSuccess;
+  can_implement &= a.block_size == BlockSize::k128;
+  can_implement &= !transpose_a && transpose_b;
+  can_implement &= ValidMatmul(a, transpose_a, b, transpose_b, c);
+  return can_implement;
 }
 
+
 cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
-    int m, int k, int n,
-    int nonzeros, int block_dim,
-    const half* a,
-    const int* offsets_a,
-    const short* indices_a,
-    const half* b, bool transpose_b,
-    half* c, cudaStream_t stream) {
+    const BlockMatrix a, bool transpose_a,
+    const Matrix b, bool transpose_b,
+    Matrix c, cudaStream_t stream) {
   using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
 
-  Dsd::Arguments args({m, n, k},
+  MatmulShape shape(a, transpose_a, b, transpose_b);
+  Dsd::Arguments args({shape.m, shape.n, shape.k},
 		      {1.0f, 0.0f},
-		      {a, offsets_a, indices_a, /*lda=*/k},
-		      {b, /*ldb=*/k},
-		      {c, /*ldc=*/n},
-		      {c, /*ldc=*/n});
+		      {a.data, a.offsets, a.indices, shape.lda},
+		      {b.data, shape.ldb},
+		      {c.data, shape.ldc},
+		      {c.data, shape.ldc});
 
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Dsd::KernelFn::can_implement(args);

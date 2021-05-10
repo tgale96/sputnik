@@ -15,13 +15,14 @@ namespace cutlass {
 namespace {
 
 using CanImplementFn = std::function<
-    bool(int, int, int, int, int, bool, bool)>;
+    bool(const BlockMatrix, bool,
+         const Matrix, bool,
+         Matrix)>;
 
 using LaunchFn = std::function<
-    cudaError_t(int, int, int, int, int,
-                const half*, const int*,
-                const short*, const half*,
-                bool, half*, cudaStream_t)>;
+    cudaError_t(const BlockMatrix, bool,
+                const Matrix, bool,
+                Matrix, cudaStream_t)>;
 
 using Kernel = std::pair<CanImplementFn, LaunchFn>;
 
@@ -50,24 +51,22 @@ static const bool k2 = RegisterKernel(can_launch_dsd_mixed_b128_128x256x32x3_nn_
 
 }  // namespace
 
-cudaError_t Dsd(int m, int k, int n,
-		int nonzeros, int block_dim,
-		const half* a,
-		const int* offsets_a,
-		const short* indices_a,
-		const half* b, bool transpose_b,
-		half* c, cudaStream_t stream) {
+cudaError_t Matmul(const BlockMatrix a, bool transpose_a,
+                   const Matrix b, bool transpose_b,
+                   Matrix c, cudaStream_t stream) {
   for (auto &kernel : GetRegistry()) {
     // TODO(tgale): Do something smarter than launching the first
     // compatible kernel.
-    if (kernel.first(m, k, n, nonzeros, block_dim, false, transpose_b)) {
-      return kernel.second(m, k, n, nonzeros, block_dim, a, offsets_a,
-                           indices_a, b, transpose_b, c, stream);
+    if (kernel.first(a, transpose_a, b, transpose_b, c)) {
+      return kernel.second(a, transpose_a, b, transpose_b, c, stream);
     }
   }
 
-  LOG(FATAL) << "No compatible kernel for problem. m/n/k/b = " <<
-      m << "/" << n << "/" << k << "/" << block_dim << ".";
+  MatmulShape shape(a, transpose_a, b, transpose_b);
+  LOG(FATAL) << "No compatible kernel for problem.\n" << "m = " << shape.m <<
+      "\nn = " << shape.n << "\nk = " << shape.k << "\nblock_size = " <<
+      AsInt(a.block_size) << "\ntrans_a = " << transpose_a << "\ntrans_b = " <<
+      transpose_b << std::endl;
   return cudaGetLastError();
 }
 
