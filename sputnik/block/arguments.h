@@ -117,7 +117,6 @@ struct MatmulShape {
     ldc = n;
   }
 
-  // TODO(tgale): Overload for different argument types.
   MatmulShape(const BlockMatrix a, bool transpose_a,
               const Matrix b, bool transpose_b) {
     m = transpose_a ? a.cols : a.rows;
@@ -127,12 +126,22 @@ struct MatmulShape {
     ldb = transpose_b ? k : n;
     ldc = n;
   }
+
+  MatmulShape(const Matrix a, bool transpose_a,
+              const BlockMatrix b, bool transpose_b) {
+    m = transpose_a ? a.cols : a.rows;
+    k = transpose_a ? a.rows : a.cols;
+    n = transpose_b ? b.rows : b.cols;
+    lda = transpose_a ? m : k;
+    ldb = transpose_b ? k : n;
+    ldc = n;
+  }
 };
 
-// TODO(tgale): Overload for different argument types.
+template <typename TypeA, typename TypeB>
 inline bool ValidMatmul(
-    const BlockMatrix a, bool transpose_a,
-    const Matrix b, bool transpose_b, Matrix c) {
+    const TypeA a, bool transpose_a,
+    const TypeB b, bool transpose_b, Matrix c) {
   MatmulShape shape(a, transpose_a, b, transpose_b);
 
   bool valid = true;

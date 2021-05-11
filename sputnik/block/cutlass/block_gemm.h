@@ -175,6 +175,95 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   }
 };
 
+template <
+  typename Gemm,
+  typename LayoutA>
+struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
+  using Arguments = typename Gemm::Arguments;
+  using Params = typename Gemm::Params;
+
+  using RetParamsA = Op;
+  using RetParamsB = Op;
+  using RetOffsetA = ::cutlass::MatrixCoord;
+  using RetOffsetB = int;
+
+  using ParamsA = typename Gemm::Mma::IteratorA::Params;
+  using ParamsB = typename Gemm::Mma::IteratorB::Params;
+
+  using ElementB = typename Gemm::Mma::IteratorB::Element;
+  using MetaB = typename Type<ElementB>::Meta;
+
+  static const int kBlockSize = Gemm::Mma::IteratorB::Shape::kBlock *
+    Gemm::Mma::IteratorB::Shape::kBlock;
+
+  Params const &params;
+  const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
+  int offset_b, nnz_b;
+
+  CUTLASS_DEVICE
+  ConfigHelper(Params const &params_,
+	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
+    params(params_), threadblock_tile_offset(threadblock_tile_offset_) {
+    // Load the offset and number of nonzeros.
+    int *offset_ptr_b = (int*)params_.op_B.offsets;
+    int block_cow_idx = threadblock_tile_offset.n();
+
+    offset_b = __ldg(offset_ptr_b + block_cow_idx);
+
+    // In scalar elements. Divide by the block size to get
+    // the number of columns to process.
+    nnz_b = __ldg(offset_ptr_b + block_cow_idx + 1) - offset_b;
+  }
+
+  CUTLASS_HOST_DEVICE
+  static RetParamsA ItArgsA(Arguments args) {
+    // Set the meta-data pointer for operand A.
+    args.op_A.indices = args.op_B.indices;
+    return args.op_A;
+  }
+
+  CUTLASS_HOST_DEVICE
+  static RetParamsB ItArgsB(Arguments args) {
+    return args.op_B;
+  }
+
+  CUTLASS_DEVICE
+  ParamsA UpdateParamsA(ParamsA const &params) const {
+    ParamsA out = params;
+    out.indices += offset_b / kBlockSize;
+    return out;
+  }
+
+  CUTLASS_DEVICE
+  ParamsB UpdateParamsB(ParamsB const &params) const {
+    // NOTE: This should be elided by the compiler for
+    // the non-transposed kernels where we do not use
+    // explicit block offsets.
+    ParamsB out = params;
+    out.block_offsets += offset_b / kBlockSize;
+    return out;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetA OffsetA() const {
+    RetOffsetA tb_offset_A{
+      threadblock_tile_offset.m() * Gemm::Mma::Shape::kM, 0
+    };
+    return tb_offset_A;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetB OffsetB() const {
+    return offset_b;
+  }
+
+  CUTLASS_DEVICE
+  int StepsK() const {
+    int nnz_rows_b = nnz_b / Gemm::Mma::IteratorB::Shape::kBlock;
+    return (nnz_rows_b + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
+  }
+};
+
 // Helper to handle mixes of sparse and dense arguments.
 template <typename Mma_, typename Epilogue_, typename ThreadblockSwizzle_>
 struct Config {
