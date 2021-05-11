@@ -76,18 +76,15 @@ class BlockTileAccessIterator {
   static_assert(!(ThreadMap::kElementsPerAccess % AccessType::kElements),
     "Vectors implied by the thread map must be divisible by the access type.");
 
-  // Matrix meta-data type.
-  using Meta = typename Type<Element>::Meta;
-
   // NOTE: All increments are statically computable for block-sparse
   // iterator with known block dimensions.
   struct Params {
-    Meta *block_offsets;
+    int *block_offsets;
 
     CUTLASS_HOST_DEVICE Params()
         : block_offsets(nullptr) {}
     CUTLASS_HOST_DEVICE Params(Op op)
-        : block_offsets((Meta*)op.block_offsets) {}
+        : block_offsets((int*)op.block_offsets) {}
   };
 
  private:
@@ -125,6 +122,10 @@ class BlockTileAccessIterator {
   // Increment to the next block.
   static const int kIncBlock = Shape::kBlock * Shape::kBlock *
     kElementBytes - (kIterationsBlock - 1) * kIncAdvance - kIncAdvance;
+
+  // The number of bytes in each block.
+  static const int kBytesPerBlock =
+      Shape::kBlock * Shape::kBlock * kElementBytes;
 
   //
   /// Data members
@@ -174,7 +175,7 @@ class BlockTileAccessIterator {
       int block_row_offset)
       : pointer_(reinterpret_cast<BytePointer>(
             const_cast<NonConstPointer>(pointer))),
-        extent_(extent), current_offset_(0), params_(params) {
+        extent_(extent), current_offset_(-kBytesPerBlock), params_(params) {
     // TODO(tgale): Do we need to possibly transpose this initial
     // coordinate?
     //
@@ -215,41 +216,40 @@ class BlockTileAccessIterator {
 
   CUTLASS_DEVICE
   void add_block_offset() {
-    int absolute_offset = (int)__ldg(params_.block_offsets);
-    int relative_offset = absolute_offset - current_offset_;
-    add_pointer_offset(relative_offset);
+    if (kAdvanceRank) {
+      // TODO(tgale): We might need to change this offset calculation
+      // based on what we calculate for the block offsets. i.e., I
+      // believe they'll come in as byte offsets.
+      int absolute_offset = __ldg(params_.block_offsets);
+      int relative_offset = absolute_offset - current_offset_ - kBytesPerBlock;
 
-    // Update our current offset and pointer for next iteration.
-    current_offset_ = absolute_offset;
-    ++params_.block_offsets;
+      pointer_ += relative_offset;
+
+      // Update our current offset and pointer for next iteration.
+      current_offset_ = absolute_offset;
+      ++params_.block_offsets;
+    } else {
+      // Offset to the next block in the compressed block-row.
+      pointer_ += kIncBlock;
+    }
   }
 
   // Advances an iterator along logical dimensions of matrix in units of whole tiles
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
-    if (kAdvanceRank) {
-      ++iteration_block_;
-      if (iteration_block_ >= kIterationsBlock) {
-        iteration_block_ = 0;
-        add_block_offset();
-      }
-    } else {
-      const TensorCoord tile_offset = LayoutCvt::to_pitch_linear(tile_offset_);
-      pointer_ += kIncAdvance * LongIndex(tile_offset.contiguous());
+    // TODO(tgale): This function only supports increments by one
+    // tile in the 'advance' direction.
+    pointer_ += kIncAdvance;
 
-      // TODO(tgale): Is this correct? Seems like we need an extra
-      // factor to get the full block size moving in the strided
-      // dimension.
-      pointer_ += Shape::kStrided * tile_offset.strided();
+    // TODO(tgale): On the last iteration this update will go
+    // one off the end of the block_offset array. We should
+    // predicate this pre-fetching
+    ++iteration_block_;
+    if (iteration_block_ >= kIterationsBlock) {
+      iteration_block_ = 0;
 
-      // TODO(tgale): This doesn't support increments in the strided
-      // dimension and also doesn't support increments of greater than
-      // one tile.
-      ++iteration_block_;
-      if (iteration_block_ >= kIterationsBlock) {
-        iteration_block_ = 0;
-        pointer_ += kIncBlock;
-      }
+      // Offset to the next sparse block.
+      add_block_offset();
     }
   }
 

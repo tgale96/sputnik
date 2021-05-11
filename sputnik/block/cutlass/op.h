@@ -17,14 +17,32 @@ struct Op {
 
   int ld;
 
+  // Constructor for non-transposed sparse matrix.
   CUTLASS_HOST_DEVICE
-  Op(void const *data_, void const *offsets_, void const *indices_, int ld_)
+  Op(void const *data_,
+     void const *offsets_,
+     void const *indices_,
+     int ld_)
       : data(const_cast<void*>(data_)),
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
         block_offsets(nullptr),
         ld(ld_) {}
 
+  // Constructor for transposed sparse matrix.
+  CUTLASS_HOST_DEVICE
+  Op(void const *data_,
+     void const *offsets_,
+     void const *indices_,
+     void const *block_offsets_,
+     int ld_)
+      : data(const_cast<void*>(data_)),
+        offsets(const_cast<void*>(offsets_)),
+        indices(const_cast<void*>(indices_)),
+        block_offsets(const_cast<void*>(block_offsets_)),
+        ld(ld_) {}
+
+  // Constructor for dense matrix.
   CUTLASS_HOST_DEVICE
   Op(void const *data_, int ld_)
       : data(const_cast<void*>(data_)),

@@ -27,12 +27,13 @@ using ::testing::NanSensitiveFloatNear;
 using ::testing::Pointwise;
 
 template <
-  int kDimM_,
-  int kDimK_,
-  int kDimN_,
-  int kNonZeros_,
-  int kBlockDim_,
-  bool kTransposeB_ = false>
+    int kDimM_,
+    int kDimK_,
+    int kDimN_,
+    int kNonZeros_,
+    int kBlockDim_,
+    bool kTransposeA_ = false,
+    bool kTransposeB_ = false>
 struct Problem {
   static_assert(kNonZeros_ <= kDimM_ * kDimK_,
                 "Number of non-zero must fit in the matrix.");
@@ -42,6 +43,7 @@ struct Problem {
   static constexpr int kDimN = kDimN_;
   static constexpr int kNonZeros = kNonZeros_;
   static constexpr int kBlockDim = kBlockDim_;
+  static constexpr int kTransposeA = kTransposeA_;
   static constexpr int kTransposeB = kTransposeB_;
 };
 
@@ -53,6 +55,7 @@ class DsdTest : public ::testing::Test {
   const int kDimN = Problem::kDimN;
   const int kNonZeros = Problem::kNonZeros;
   const int kBlockDim = Problem::kBlockDim;
+  const int kTransposeA = Problem::kTransposeA;
   const int kTransposeB = Problem::kTransposeB;
 
   // Random number generator for creating matrices.
@@ -75,42 +78,57 @@ typedef ::testing::Types<
     Problem<1024, 1024, 1024, 512*1024, 32>,
     Problem<1024, 1024, 1024, 256*1024, 32>,
     // Block 128 problems NT.
-    Problem<128, 128, 8, 128*128, 128, true>,    // Minimum problem size.
-    Problem<128, 256, 8, 128*128, 128, true>,    // Two inner loops.
-    Problem<256, 128, 8, 256*128, 128, true>,    // Two rows of blocks.
-    Problem<128, 128, 512, 128*128, 128, true>,  // Two tile columns.
-    Problem<128, 256, 8, 128*128, 128, true>,    // 50% sparse.
-    Problem<256, 256, 8, 256*128, 128, true>,     // 50% sparse, multi-row.
+    Problem<128, 128, 8, 128*128, 128, false, true>,    // Minimum problem size.
+    Problem<128, 256, 8, 256*128, 128, false, true>,    // Two inner loops.
+    Problem<256, 128, 8, 256*128, 128, false, true>,    // Two rows of blocks.
+    Problem<128, 128, 512, 128*128, 128, false, true>,  // Two tile columns.
+    Problem<128, 256, 8, 128*128, 128, false, true>,    // 50% sparse.
+    Problem<256, 256, 8, 256*128, 128, false, true>,     // 50% sparse, multi-row.
     // Block 128 problems NN.
     Problem<128, 128, 8, 128*128, 128>,
-    Problem<128, 256, 8, 128*128, 128>,
+    Problem<128, 256, 8, 256*128, 128>,
     Problem<256, 128, 8, 256*128, 128>,
     Problem<128, 128, 512, 128*128, 128>,
     Problem<128, 256, 8, 128*128, 128>,
     Problem<256, 256, 8, 256*128, 128>,
-    // Larger problems.
-    Problem<512, 512, 1024, 512*512, 128, true>,
-    Problem<512, 512, 1024, 256*512, 128, true>,
-    Problem<512, 512, 1024, 128*512, 128, true>,
-    Problem<1024, 1024, 1024, 1024*1024, 128, true>,
-    Problem<1024, 1024, 1024, 512*1024, 128, true>,
-    Problem<1024, 1024, 1024, 256*1024, 128, true>,
-    // Larger problems.
+    // Block 128 problems TN.
+    Problem<128, 128, 8, 128*128, 128, true>,
+    Problem<128, 256, 8, 256*128, 128, true>,
+    Problem<256, 128, 8, 256*128, 128, true>,
+    Problem<128, 128, 512, 128*128, 128, true>,
+    Problem<128, 256, 8, 128*128, 128, true>,
+    Problem<256, 256, 8, 256*128, 128, true>,
+    // Larger problems NT.
+    Problem<512, 512, 1024, 512*512, 128, false, true>,
+    Problem<512, 512, 1024, 256*512, 128, false, true>,
+    Problem<512, 512, 1024, 128*512, 128, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, false, true>,
+    // Larger problems NN.
     Problem<512, 512, 1024, 512*512, 128>,
     Problem<512, 512, 1024, 256*512, 128>,
     Problem<512, 512, 1024, 128*512, 128>,
     Problem<1024, 1024, 1024, 1024*1024, 128>,
     Problem<1024, 1024, 1024, 512*1024, 128>,
-    Problem<1024, 1024, 1024, 256*1024, 128>
+    Problem<1024, 1024, 1024, 256*1024, 128>,
+    // Larger problems TN.
+    Problem<512, 512, 1024, 512*512, 128, true>,
+    Problem<512, 512, 1024, 256*512, 128, true>,
+    Problem<512, 512, 1024, 128*512, 128, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true>
   > TestProblems;
 
 TYPED_TEST_SUITE(DsdTest, TestProblems);
 
 TYPED_TEST(DsdTest, Dsd) {
   // Create the sparse matrix on cpu & gpu.
+  int oda = this->kTransposeA ? this->kDimK : this->kDimM;
+  int lda = this->kTransposeA ? this->kDimM : this->kDimK;
   BlockSparseMatrix lhs_(
-      this->kDimM, this->kDimK,
-      this->kNonZeros, this->kBlockDim,
+      oda, lda, this->kNonZeros, this->kBlockDim,
       RANDOM_UNIFORM, &this->generator_,
       /*pad_rows_to=*/1);
   sputnik::Matrix lhs = ToMatrix(lhs_);
@@ -126,13 +144,18 @@ TYPED_TEST(DsdTest, Dsd) {
   CudaMatrix<half> out_gpu(this->kDimM, this->kDimN, &this->generator_);
 
   // Run the gpu kernel.
-  CUDA_CALL(Matmul(Arg(lhs_gpu), /*transpose_a=*/false,
+  BlockMatrix lhs_args = Arg(lhs_gpu);
+  if (this->kTransposeA) AllocateTransposeBuffers(lhs_args);
+  CUDA_CALL(Matmul(lhs_args, this->kTransposeA,
                    Arg(rhs_gpu), this->kTransposeB,
                    Arg(out_gpu), /*stream=*/0));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
+  if (this->kTransposeA) FreeTransposeBuffers(lhs_args);
 
   // Verify the results.
-  sputnik::Matrix out = this->kTransposeB ? lhs * rhs.T() : lhs * rhs;
+  sputnik::Matrix out =
+      (this->kTransposeA ? lhs.T() : lhs) *
+      (this->kTransposeB ? rhs.T() : rhs);
   sputnik::Matrix results(out_gpu);
   auto comparator = Pointwise(NanSensitiveFloatNear(5e-02), ToVector(out));
   ASSERT_THAT(ToVector(results), comparator);

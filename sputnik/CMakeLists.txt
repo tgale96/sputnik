@@ -16,6 +16,7 @@ add_subdirectory(depthwise)
 add_subdirectory(bias_relu)
 add_subdirectory(softmax)
 add_subdirectory(utils)
+add_subdirectory(block/transpose)
 
 set(SPUTNIK_BDSD_TEST_SRCS)
 set(SPUTNIK_BDSD_BENCHMARK_SRCS)

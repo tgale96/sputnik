@@ -10,14 +10,14 @@
 namespace sputnik {
 namespace block {
 namespace cutlass {
-  
+
 // Forward declare for Filter.
 template <
   typename Mma_,
   typename Epilogue_,
   typename ThreadblockSwizzle_>
 struct BlockGemm;
-  
+
 template <
   typename Gemm,
   typename LayoutA,
@@ -26,7 +26,7 @@ struct ConfigHelper {
 
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
-  
+
   using RetParamsA = int;
   using RetParamsB = int;
   using RetOffsetA = ::cutlass::MatrixCoord;
@@ -34,15 +34,15 @@ struct ConfigHelper {
 
   using ParamsA = typename Gemm::Mma::IteratorA::Params;
   using ParamsB = typename Gemm::Mma::IteratorB::Params;
-  
+
   Params const &params;
   const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
-  
+
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
     params(params_), threadblock_tile_offset(threadblock_tile_offset_) {}
-    
+
   CUTLASS_HOST_DEVICE
   static RetParamsA ItArgsA(Arguments args) {
     return args.op_A.ld;
@@ -62,7 +62,7 @@ struct ConfigHelper {
   ParamsB UpdateParamsB(ParamsB const &params) const {
     return params;
   }
-  
+
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
     RetOffsetA tb_offset_A{
@@ -92,7 +92,7 @@ template <
 struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
-  
+
   using RetParamsA = Op;
   using RetParamsB = Op;
   using RetOffsetA = int;
@@ -100,31 +100,32 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
   using ParamsA = typename Gemm::Mma::IteratorA::Params;
   using ParamsB = typename Gemm::Mma::IteratorB::Params;
-  
+
   using ElementA = typename Gemm::Mma::IteratorA::Element;
   using MetaA = typename Type<ElementA>::Meta;
 
   static const int kBlockSize = Gemm::Mma::IteratorA::Shape::kBlock *
     Gemm::Mma::IteratorA::Shape::kBlock;
-  
+
   Params const &params;
   const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
   int offset_a, nnz_a;
-  
+
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
     params(params_), threadblock_tile_offset(threadblock_tile_offset_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_a = (int*)params_.op_A.offsets;
-    int block_row_idx = threadblock_tile_offset.m();    
+    int block_row_idx = threadblock_tile_offset.m();
+
     offset_a = __ldg(offset_ptr_a + block_row_idx);
 
     // In scalar elements. Divide by the block size to get
     // the number of columns to process.
     nnz_a = __ldg(offset_ptr_a + block_row_idx + 1) - offset_a;
   }
-  
+
   CUTLASS_HOST_DEVICE
   static RetParamsA ItArgsA(Arguments args) {
     return args.op_A;
@@ -139,17 +140,21 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
   CUTLASS_DEVICE
   ParamsA UpdateParamsA(ParamsA const &params) const {
-    // TODO(tgale): Offset the block_offset pointer here.
-    return params;
+    // NOTE: This should be elided by the compiler for
+    // the non-transposed kernels where we do not use
+    // explicit block offsets.
+    ParamsA out = params;
+    out.block_offsets += offset_a / kBlockSize;
+    return out;
   }
-  
+
   CUTLASS_DEVICE
   ParamsB UpdateParamsB(ParamsB const &params) const {
     ParamsB out = params;
     out.indices += offset_a / kBlockSize;
     return out;
   }
-  
+
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
     return offset_a;
@@ -178,7 +183,7 @@ struct Config {
 
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
-  
+
   using LayoutA = typename Gemm::Mma::IteratorA::Layout;
   using ElementA = typename Gemm::Mma::IteratorA::Element;
   using LayoutB = typename Gemm::Mma::IteratorB::Layout;
@@ -186,12 +191,12 @@ struct Config {
 
   using ParamsA = typename Gemm::Mma::IteratorA::Params;
   using ParamsB = typename Gemm::Mma::IteratorB::Params;
-  
+
   using Helper = ConfigHelper<Gemm, LayoutA, LayoutB>;
 
   // Underlying helper.
   Helper helper;
-  
+
   CUTLASS_DEVICE
   Config(Params const &params_,
 	 const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
@@ -216,21 +221,21 @@ struct Config {
   ParamsB UpdateParamsB(ParamsB const &params) const {
     return helper.UpdateParamsB(params);
   }
-  
+
   CUTLASS_DEVICE
   typename Helper::RetOffsetA OffsetA() const { return helper.OffsetA(); }
 
   CUTLASS_DEVICE
   typename Helper::RetOffsetB OffsetB() const { return helper.OffsetB(); }
-			    
+
   CUTLASS_DEVICE
   int StepsK() const { return helper.StepsK(); }
 };
 
 // Gemm class.
-  
+
 template <
-  typename Mma_,                  ///! Threadblock-scoped matrix multiply-accumulate 
+  typename Mma_,                  ///! Threadblock-scoped matrix multiply-accumulate
   typename Epilogue_,             ///! Epilogue
   typename ThreadblockSwizzle_    ///! Threadblock swizzling function
 >
@@ -251,14 +256,14 @@ public:
   static int const kThreadCount = 32 * WarpCount::kCount;
 
   using Config = Config<Mma, Epilogue, ThreadblockSwizzle>;
-  
+
   //
   // Structures
   //
-  
+
   /// Argument structure
   struct Arguments {
-      
+
     //
     // Data members
     //
@@ -275,7 +280,7 @@ public:
     // Methods
     //
 
-    Arguments(): 
+    Arguments():
       op_A(nullptr, 0), op_B(nullptr, 0), op_C(nullptr, 0), op_D(nullptr, 0) { }
 
     /// constructs an arguments structure
@@ -287,8 +292,8 @@ public:
       Op op_C,
       Op op_D
     ):
-      problem_size(problem_size), 
-      epilogue(epilogue), 
+      problem_size(problem_size),
+      epilogue(epilogue),
       op_A(op_A), op_B(op_B), op_C(op_C), op_D(op_D) {}
 
     /// Returns arguments for the transposed problem
@@ -309,12 +314,12 @@ public:
 
     ::cutlass::gemm::GemmCoord problem_size;
     ::cutlass::gemm::GemmCoord grid_tiled_shape;
-    
+
     typename Mma::IteratorA::Params params_A;
     typename Mma::IteratorB::Params params_B;
     typename Epilogue::OutputTileIterator::Params params_C;
     typename Epilogue::OutputTileIterator::Params params_D;
-    
+
     typename EpilogueOutputOp::Params output_op;
 
     Op op_A;
@@ -374,7 +379,7 @@ public:
   //
 
   CUTLASS_DEVICE
-  BlockGemm() {} 
+  BlockGemm() {}
 
   /// Determines whether kernel satisfies alignment
   static ::cutlass::Status can_implement(
@@ -413,12 +418,12 @@ public:
 
     Config config(params, threadblock_tile_offset);
 
-    ElementA *ptr_A = static_cast<ElementA *>(params.op_A.data); 
+    ElementA *ptr_A = static_cast<ElementA *>(params.op_A.data);
     ElementB *ptr_B = static_cast<ElementB *>(params.op_B.data);
 
     // TODO(tgale): Do we need to synchronize here?
     __syncthreads();
-    
+
     // Compute initial location in logical coordinates
     auto tb_offset_A = config.OffsetA();
     auto tb_offset_B = config.OffsetB();
@@ -426,7 +431,7 @@ public:
     // Compute position within threadblock
     int thread_idx = threadIdx.x;
     int problem_size_k = params.problem_size.k();
-    
+
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(
       config.UpdateParamsA(params.params_A),
@@ -488,7 +493,7 @@ public:
       threadblock_tile_offset.n() * Mma::Shape::kN
     );
 
-    ElementC *ptr_C = static_cast<ElementC *>(params.op_C.data); 
+    ElementC *ptr_C = static_cast<ElementC *>(params.op_C.data);
     ElementC *ptr_D = static_cast<ElementC *>(params.op_D.data);
 
     //
@@ -514,22 +519,22 @@ public:
     );
 
     Epilogue epilogue(
-      shared_storage.epilogue, 
-      thread_idx, 
-      warp_idx, 
+      shared_storage.epilogue,
+      thread_idx,
+      warp_idx,
       lane_idx);
-    
+
     // Execute the epilogue operator to update the destination tensor.
     epilogue(
-      output_op, 
-      iterator_D, 
-      accumulators, 
-      iterator_C); 
+      output_op,
+      iterator_D,
+      accumulators,
+      iterator_C);
   }
 };
 
 }  // namespace cutlass
 }  // namespace block
-}  // namespace sputnik 
+}  // namespace sputnik
 
-#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_GEMM_H_ 
+#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_GEMM_H_

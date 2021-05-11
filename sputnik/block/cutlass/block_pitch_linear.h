@@ -16,7 +16,7 @@ struct BlockMatrixShape {
   static int const kBlock = Block;
   static int const kCount = Row * Column;
 };
- 
+
 // Template defining shape used by block-sparse
 // pitch-linear matrices. Matrices are represented
 // in 4d: [rows // block, cols // block, block, block].

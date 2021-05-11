@@ -1,6 +1,11 @@
 #ifndef SPUTNIK_BLOCK_ARGUMENTS_H_
 #define SPUTNIK_BLOCK_ARGUMENTS_H_
 
+#include <iostream>
+
+#include "sputnik/cuda_utils.h"
+#include "sputnik/test_utils.h"
+
 #include "glog/logging.h"
 
 namespace sputnik {
@@ -138,6 +143,30 @@ inline bool ValidMatmul(
   valid &= c.rows == shape.m;
   valid &= c.cols == shape.n;
   return valid;
+}
+
+inline void AllocateTransposeBuffers(BlockMatrix &a) {
+  const int kBlockCols = a.cols / AsInt(a.block_size);
+  size_t offset_bytes = (kBlockCols + 1) * sizeof(int);
+  CUDA_CALL(cudaMalloc(&a.offsets_t, offset_bytes));
+
+  size_t indices_bytes = a.nonzeros * sizeof(short);
+  CUDA_CALL(cudaMalloc(&a.indices_t, indices_bytes));
+
+  size_t block_offsets_bytes = a.nonzeros * sizeof(int);
+  CUDA_CALL(cudaMalloc(&a.block_offsets, block_offsets_bytes));
+}
+
+inline void FreeTransposeBuffers(const BlockMatrix &a) {
+  if (a.offsets_t != nullptr) {
+    CUDA_CALL(cudaFree(a.offsets_t));
+  }
+  if (a.indices_t != nullptr) {
+    CUDA_CALL(cudaFree(a.indices_t));
+  }
+  if (a.block_offsets != nullptr) {
+    CUDA_CALL(cudaFree(a.block_offsets));
+  }
 }
 
 }  // namespace block

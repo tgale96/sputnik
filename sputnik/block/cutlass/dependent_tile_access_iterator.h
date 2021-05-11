@@ -30,15 +30,15 @@ class DependentTileAccessIterator {
   using Shape = Shape_;
   using Element = typename Iterator::Element;
   using Layout = typename Iterator::Layout;
-  
+
   // The advance rank as pitch-linear.
   static const int kAdvanceRank = Iterator::UnderlyingIterator::kAdvanceRank;
-  
+
   using ThreadMap = ThreadMap_;
   using AccessType = AccessType_;
-  
+
   static const int kAccessesPerVector = Iterator::kAccessesPerVector;
-  
+
   // The number of tiles in each sparse block.
   static const int kIterationsBlock =
       kAdvanceRank ?
@@ -47,10 +47,10 @@ class DependentTileAccessIterator {
 
   // Pointer type.
   using Pointer = typename Iterator::Pointer;
-  
+
   // Matrix meta-data type.
   using Meta = typename Type<Element>::Meta;
-  
+
   struct Params {
     typename Iterator::Params iterator_params;
     Meta *indices;
@@ -79,7 +79,7 @@ class DependentTileAccessIterator {
 
   // Current absolute offset in blocks.
   int current_offset_;
-  
+
   CUTLASS_HOST_DEVICE
   DependentTileAccessIterator(
       /// Precomputed parameters object
@@ -163,11 +163,11 @@ class DependentTileAccessIterator {
   }
 
   CUTLASS_HOST_DEVICE
-  DependentTileAccessIterator operator++(int) {     
+  DependentTileAccessIterator operator++(int) {
     DependentTileAccessIterator self(*this);
     operator++();
     return self;
-  }  
+  }
 
   CUTLASS_HOST_DEVICE
   void clear_mask() { iterator_.clear_mask(); }
@@ -175,7 +175,7 @@ class DependentTileAccessIterator {
   CUTLASS_HOST_DEVICE
   bool valid() { return iterator_.valid(); }
 };
-  
+
 }  // namespace cutlass
 }  // namespace block
 }  // namespace sputnik
