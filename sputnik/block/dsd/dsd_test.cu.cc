@@ -98,6 +98,13 @@ typedef ::testing::Types<
     Problem<128, 128, 512, 128*128, 128, true>,
     Problem<128, 256, 8, 128*128, 128, true>,
     Problem<256, 256, 8, 256*128, 128, true>,
+    // Block 128 problems TT.
+    Problem<128, 128, 8, 128*128, 128, true, true>,
+    Problem<128, 256, 8, 256*128, 128, true, true>,
+    Problem<256, 128, 8, 256*128, 128, true, true>,
+    Problem<128, 128, 512, 128*128, 128, true, true>,
+    Problem<128, 256, 8, 128*128, 128, true, true>,
+    Problem<256, 256, 8, 256*128, 128, true, true>,
     // Larger problems NT.
     Problem<512, 512, 1024, 512*512, 128, false, true>,
     Problem<512, 512, 1024, 256*512, 128, false, true>,
@@ -118,7 +125,14 @@ typedef ::testing::Types<
     Problem<512, 512, 1024, 128*512, 128, true>,
     Problem<1024, 1024, 1024, 1024*1024, 128, true>,
     Problem<1024, 1024, 1024, 512*1024, 128, true>,
-    Problem<1024, 1024, 1024, 256*1024, 128, true>
+    Problem<1024, 1024, 1024, 256*1024, 128, true>,
+    // Larger problems TT.
+    Problem<512, 512, 1024, 512*512, 128, true, true>,
+    Problem<512, 512, 1024, 256*512, 128, true, true>,
+    Problem<512, 512, 1024, 128*512, 128, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true, true>
   > TestProblems;
 
 TYPED_TEST_SUITE(DsdTest, TestProblems);

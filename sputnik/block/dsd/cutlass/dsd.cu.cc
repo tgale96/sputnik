@@ -50,6 +50,8 @@ static const bool k2 = RegisterKernel(can_launch_dsd_mixed_b128_128x256x32x3_nn_
                                       launch_dsd_mixed_b128_128x256x32x3_nn_align8);
 static const bool k3 = RegisterKernel(can_launch_dsd_mixed_b128_128x256x32x3_tn_align8,
                                       launch_dsd_mixed_b128_128x256x32x3_tn_align8);
+static const bool k4 = RegisterKernel(can_launch_dsd_mixed_b128_128x256x32x3_tt_align8,
+                                      launch_dsd_mixed_b128_128x256x32x3_tt_align8);
 
 }  // namespace
 
