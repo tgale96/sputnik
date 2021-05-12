@@ -56,16 +56,20 @@ class DependentTileAccessIterator {
     Meta *indices;
     int stride;
 
+    // NOTE: We rely on our config to update this parameter inside
+    // the kernel. This is a hack.
+    int steps_k;
+
     // Default ctor
-    CUTLASS_HOST_DEVICE
-    Params() {}
+    CUTLASS_HOST_DEVICE Params() {}
 
     // Construct from operand.
     CUTLASS_HOST_DEVICE
     Params(Op op)
       : iterator_params(op.ld),
 	indices((Meta*)op.indices),
-	stride(op.ld) {}
+	stride(op.ld),
+        steps_k(0) {}
   };
 
   // Underyling iterator.
@@ -98,12 +102,6 @@ class DependentTileAccessIterator {
       params_(params),
       iteration_block_(0),
       current_offset_(-Shape::kBlock) {
-    // TODO(tgale): Figure out how to handle indices for the
-    // transposed case. We likely need to sort the column
-    // indices to get the block offsets anyways, so we could
-    // probably still pass them in and have the correct
-    // indices be contiguous.
-
     // Offset to the first block.
     add_block_offset();
   }
@@ -120,6 +118,10 @@ class DependentTileAccessIterator {
 
   CUTLASS_DEVICE
   void add_block_offset() {
+    // Don't load an index if we're out of work to do.
+    if (params_.steps_k == 0) return;
+    --params_.steps_k;
+
     int absolute_offset = (int)__ldg(params_.indices);
     int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
 

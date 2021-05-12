@@ -145,6 +145,9 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
     // explicit block offsets.
     ParamsA out = params;
     out.block_offsets += offset_a / kBlockSize;
+
+    // Set the number of steps for predicated index loads.
+    out.steps_k = StepsK();
     return out;
   }
 
@@ -152,6 +155,9 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   ParamsB UpdateParamsB(ParamsB const &params) const {
     ParamsB out = params;
     out.indices += offset_a / kBlockSize;
+
+    // Set the number of steps for predicated index loads.
+    out.steps_k = StepsK();
     return out;
   }
 
@@ -231,6 +237,9 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
   ParamsA UpdateParamsA(ParamsA const &params) const {
     ParamsA out = params;
     out.indices += offset_b / kBlockSize;
+
+    // Set the number of steps for predicated index loads.
+    out.steps_k = StepsK();
     return out;
   }
 
@@ -241,6 +250,9 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
     // explicit block offsets.
     ParamsB out = params;
     out.block_offsets += offset_b / kBlockSize;
+
+    // Set the number of steps for predicated index loads.
+    out.steps_k = StepsK();
     return out;
   }
 
@@ -259,6 +271,9 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
 
   CUTLASS_DEVICE
   int StepsK() const {
+    // TODO(tgale): We now call this function in multiple places.
+    // If the compiler doesn't already, we could calculate this value
+    // in the constructor.
     int nnz_rows_b = nnz_b / Gemm::Mma::IteratorB::Shape::kBlock;
     return (nnz_rows_b + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
   }

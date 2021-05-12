@@ -77,10 +77,10 @@ inline std::vector<float> ToVector(const BlockSparseMatrix& sparse_matrix) {
 inline Matrix ToMatrix(const BlockSparseMatrix &x) {
   size_t n = x.Rows() * x.Columns();
   std::vector<float> out(n, 0);
-  
+
   const int* ro = x.RowOffsets();
   const int* co = x.ColumnIndices();
-  
+
   int bd = x.BlockDim();
   int rows = x.Rows();
   int cols = x.Columns();

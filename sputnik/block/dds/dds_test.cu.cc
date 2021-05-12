@@ -141,13 +141,6 @@ TYPED_TEST(DdsTest, Dds) {
   sputnik::Matrix rhs = ToMatrix(rhs_);
   CudaBlockSparseMatrix<half> rhs_gpu(rhs_);
 
-  for (int i = 0; i < 3; ++i) {
-    std::cout << "offset = " << rhs_.RowOffsets()[i] << std::endl;
-  }
-  for (int i = 0; i < 2; ++i) {
-    std::cout << "indices = " << rhs_.ColumnIndices()[i] << std::endl;
-  }
-
   // Create the output matrix on gpu & gpu.
   CudaMatrix<half> out_gpu(this->kDimM, this->kDimN, &this->generator_);
 

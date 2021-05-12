@@ -17,6 +17,10 @@ struct Op {
 
   int ld;
 
+  // TODO(tgale): Including this in our op structure is a hack.
+  // find a better way to pass this to our iterators.
+  int steps_k;
+
   // Constructor for non-transposed sparse matrix.
   CUTLASS_HOST_DEVICE
   Op(void const *data_,
@@ -27,7 +31,7 @@ struct Op {
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
         block_offsets(nullptr),
-        ld(ld_) {}
+        ld(ld_), steps_k(0) {}
 
   // Constructor for transposed sparse matrix.
   CUTLASS_HOST_DEVICE
@@ -40,7 +44,7 @@ struct Op {
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
         block_offsets(const_cast<void*>(block_offsets_)),
-        ld(ld_) {}
+        ld(ld_), steps_k(0) {}
 
   // Constructor for dense matrix.
   CUTLASS_HOST_DEVICE
@@ -49,7 +53,7 @@ struct Op {
         offsets(nullptr),
         indices(nullptr),
         block_offsets(nullptr),
-        ld(ld_) {}
+        ld(ld_), steps_k(0) {}
 };
 
 }  // namespace cutlass

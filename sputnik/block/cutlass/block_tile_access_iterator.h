@@ -81,10 +81,13 @@ class BlockTileAccessIterator {
   struct Params {
     int *block_offsets;
 
-    CUTLASS_HOST_DEVICE Params()
-        : block_offsets(nullptr) {}
+    // NOTE: We rely on our config to update this parameter inside
+    // the kernel. This is a hack.
+    int steps_k;
+
+    CUTLASS_HOST_DEVICE Params() {}
     CUTLASS_HOST_DEVICE Params(Op op)
-        : block_offsets((int*)op.block_offsets) {}
+        : block_offsets((int*)op.block_offsets), steps_k(0) {}
   };
 
  private:
@@ -217,6 +220,10 @@ class BlockTileAccessIterator {
   CUTLASS_DEVICE
   void add_block_offset() {
     if (kAdvanceRank) {
+      // Don't load an index if we're out of work to do.
+      if (params_.steps_k == 0) return;
+      --params_.steps_k;
+
       // TODO(tgale): We might need to change this offset calculation
       // based on what we calculate for the block offsets. i.e., I
       // believe they'll come in as byte offsets.
