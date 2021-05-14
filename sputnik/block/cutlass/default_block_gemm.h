@@ -4,6 +4,7 @@
 #include "sputnik/block/arguments.h"
 #include "sputnik/block/cutlass/block_gemm.h"
 #include "sputnik/block/cutlass/block_mma.h"
+#include "sputnik/block/cutlass/default_block_epilogue.h"
 
 #include "cutlass/gemm/kernel/default_gemm.h"
 
@@ -71,10 +72,9 @@ struct DefaultBlockGemm {
   static_assert(WarpShape::kK == ThreadblockShape::kK,
 		"Split-k not supported.");
 
-  using Epilogue =
-    typename ::cutlass::epilogue::threadblock::DefaultEpilogueTensorOp<
-    ThreadblockShape, typename Mma::Operator, /*kPartitionsK=*/1,
-    EpilogueOutputOp, EpilogueOutputOp::kCount>::Epilogue;
+  using Epilogue = typename DefaultBlockEpilogue<
+      kBlockSize, LayoutC, ThreadblockShape, typename Mma::Operator,
+      /*kPartitionsK=*/1, EpilogueOutputOp, EpilogueOutputOp::kCount>::Epilogue;
 
   using GemmKernel = BlockGemm<Mma, Epilogue, ThreadblockSwizzle>;
 };

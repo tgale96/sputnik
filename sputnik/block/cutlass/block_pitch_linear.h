@@ -103,7 +103,7 @@ private:
 // Useful to switch on in specializations.
 struct BlockRowMajor {
 
-  using TensorCoord = BlockPitchLinear::TensorCoord;
+  using TensorCoord = ::cutlass::MatrixCoord;
 
   using LongIndex = int64_t;
 
@@ -115,7 +115,8 @@ struct BlockRowMajor {
 
 
 struct BlockColumnMajor {
-  using TensorCoord = BlockPitchLinear::TensorCoord;
+
+  using TensorCoord = ::cutlass::MatrixCoord;
 
   CUTLASS_HOST_DEVICE
   static TensorCoord to_pitch_linear(const ::cutlass::MatrixCoord &coord) {

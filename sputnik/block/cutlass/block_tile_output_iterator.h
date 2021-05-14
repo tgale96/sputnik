@@ -12,6 +12,8 @@ namespace sputnik {
 namespace block {
 namespace cutlass {
 
+using ::cutlass::epilogue::threadblock::make_OutputTileThreadMapDesc;
+
 // Mirrors ::cutlass::epilogue::threadblock::PredicatedTileIterator.
 //
 // TODO(tgale): We only need predicates for whole blocks. Add these.
@@ -19,7 +21,7 @@ template <BlockSize kBlockSize_, typename ThreadMap_, typename Element_>
 class BlockTileOutputIterator {
  public:
   using ThreadMap = ThreadMap_;
-  using Element = Element;
+  using Element = Element_;
 
   using Layout = BlockRowMajor;
 
@@ -34,7 +36,7 @@ class BlockTileOutputIterator {
   static_assert(ThreadMap::Delta::kColumn == kBlockSize,
                 "Column delta must equal block size.");
 
-  static_assert((Threadmap::Shape::kColumn % kBlockSize) == 0,
+  static_assert((ThreadMap::Shape::kColumn % kBlockSize) == 0,
                 "Column size must be divisible by block size.");
 
   // The number of predicates we need. Equal to the number of block
@@ -57,16 +59,19 @@ class BlockTileOutputIterator {
       ThreadMap::Iterations::kCluster * kElementsPerAccess;
   using Fragment = ::cutlass::Array<Element, kFragmentSize>;
 
-  using ::cutlass::epilogue::threadblock::PredicatedTileIteratorParams;
-  using ::cutlass::epilogue::threadblock::make_OutputTileThreadMapDesc;
+  // Memory access type.
+  using AccessType = ::cutlass::AlignedArray<
+      Element, kElementsPerAccess>;
 
-  struct Params : PredicatedTileIteratorParams {
+  using BaseParams = ::cutlass::epilogue::threadblock::PredicatedTileIteratorParams;
+
+  struct Params : BaseParams {
 
     CUTLASS_HOST_DEVICE Params() {}
 
     // NOTE: layout.stride is always the block size.
     CUTLASS_HOST_DEVICE
-    Params(Layout const &layout): PredicatedTileIteratorParams(
+    Params(Layout const &layout) : BaseParams(
         kBlockSize * int(sizeof(AccessType)) / kElementsPerAccess,
         make_OutputTileThreadMapDesc<ThreadMap>()) {}
   };
@@ -104,7 +109,7 @@ class BlockTileOutputIterator {
     const int kColumnOffset = threadblock_offset / kBlockElements;
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < ThreadMap::Iterations::kColumn; ++i) {
-      predicates[i] = (kColumnOffset + i * kBlockSize) < extent.column();
+      predicates_[i] = (kColumnOffset + i * kBlockSize) < extent.column();
     }
 
     // Initialize internal state.
@@ -113,12 +118,12 @@ class BlockTileOutputIterator {
 
   CUTLASS_DEVICE
   void add_pointer_offset(LongIndex pointer_offset) {
-    byte_pointer_ += pointer_offset * sizeof_bits<Element>::value / 8;
+    byte_pointer_ += pointer_offset * ::cutlass::sizeof_bits<Element>::value / 8;
   }
 
   CUTLASS_DEVICE
   void load_with_byte_offset(Fragment &frag, int64_t byte_offset) {
-    uint8_t *byte_pointer = byte_pointer_;
+    char *byte_pointer = byte_pointer_;
     AccessType *frag_ptr = reinterpret_cast<AccessType *>(&frag);
 
     CUTLASS_PRAGMA_UNROLL
@@ -139,12 +144,15 @@ class BlockTileOutputIterator {
           for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
             const int frag_idx = frag_row_idx * ThreadMap::Iterations::kColumn + column;
 
+            // Get predicate for block.
+            bool guard = predicates_[column];
+
             // NOTE: We assume column strides are across block boundaries and statically
             // enforce this. Thus, we scale the column index by the number of elements
             // in a block.
             const int memory_idx = column * kBlockElements / kElementsPerAccess;
             ::cutlass::arch::global_load<AccessType, sizeof(AccessType)>(
-                 frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], true);
+                 frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], guard);
           }
 
           if (row + 1 < ThreadMap::Iterations::kRow) {
@@ -170,7 +178,7 @@ class BlockTileOutputIterator {
 
   CUTLASS_DEVICE
   void store_with_byte_offset(Fragment const &frag, int64_t byte_offset) {
-    uint8_t *byte_pointer = byte_pointer_;
+    char *byte_pointer = byte_pointer_;
     AccessType const *frag_ptr = reinterpret_cast<AccessType const *>(&frag);
 
     CUTLASS_PRAGMA_UNROLL
@@ -191,12 +199,15 @@ class BlockTileOutputIterator {
           for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
             const int frag_idx = frag_row_idx * ThreadMap::Iterations::kColumn + column;
 
+            // Get predicate for block.
+            bool guard = predicates_[column];
+
             // NOTE: We assume column strides are across block boundaries and statically
             // enforce this. Thus, we scale the column index by the number of elements
             // in a block.
             const int memory_idx = column * kBlockElements / kElementsPerAccess;
-            cutlass::arch::global_store<AccessType, sizeof(AccessType)>(
-                frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], true);
+            ::cutlass::arch::global_store<AccessType, sizeof(AccessType)>(
+                frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], guard);
           }
 
           if (row + 1 < ThreadMap::Iterations::kRow) {
