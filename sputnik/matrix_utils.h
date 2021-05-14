@@ -329,7 +329,7 @@ class Matrix {
 
   // Zero initialized.
   Matrix(int rows, int columns);
-  
+
   Matrix(const Matrix& other);
 
   /**
@@ -353,11 +353,31 @@ class Matrix {
   float operator()(int row, int column) const;
   float& operator()(int row, int column);
 
+  void Fill(float val) {
+    for (int i = 0; i < Rows(); ++i) {
+      for (int j = 0; j < Columns(); ++j) {
+        (*this)(i, j) = val;
+      }
+    }
+  }
+
+  void Mul(const Matrix &other) {
+    CHECK_EQ(other.Rows(), Rows());
+    CHECK_EQ(other.Columns(), Columns());
+
+    for (int i = 0; i < Rows(); ++i) {
+      for (int j = 0; j < Columns(); ++j) {
+        (*this)(i, j) *= other(i, j);
+      }
+    }
+
+  }
+
   Matrix operator*(const Matrix &other) {
     CHECK_EQ(Columns(), other.Rows());
     int m = Rows(), n = other.Columns(), k = Columns();
     Matrix out(m, n);
-    
+
     for (int i = 0; i < m; ++i) {
       for (int j = 0; j < n; ++j) {
 	double acc = 0.0;
@@ -411,7 +431,7 @@ class CudaMatrix {
   int Rows() const { return rows_; }
 
   int Columns() const { return columns_; }
-  
+
  protected:
   // Matrix value storage.
   Value* values_;

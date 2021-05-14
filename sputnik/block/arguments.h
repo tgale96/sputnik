@@ -136,12 +136,22 @@ struct MatmulShape {
     ldb = transpose_b ? k : n;
     ldc = n;
   }
+
+  MatmulShape(const Matrix a, bool transpose_a,
+              const Matrix b, bool transpose_b) {
+    m = transpose_a ? a.cols : a.rows;
+    k = transpose_a ? a.rows : a.cols;
+    n = transpose_b ? b.rows : b.cols;
+    lda = transpose_a ? m : k;
+    ldb = transpose_b ? k : n;
+    ldc = n;
+  }
 };
 
-template <typename TypeA, typename TypeB>
+template <typename TypeA, typename TypeB, typename TypeC>
 inline bool ValidMatmul(
     const TypeA a, bool transpose_a,
-    const TypeB b, bool transpose_b, Matrix c) {
+    const TypeB b, bool transpose_b, TypeC c) {
   MatmulShape shape(a, transpose_a, b, transpose_b);
 
   bool valid = true;

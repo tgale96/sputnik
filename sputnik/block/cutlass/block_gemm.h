@@ -353,7 +353,7 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   }
 
   CUTLASS_DEVICE
-      RetOffsetC OffsetC(const GemmCoord &offset) const {
+  RetOffsetC OffsetC(const GemmCoord &offset) const {
     return offset_c;
   }
 
@@ -361,6 +361,12 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   RetExtentC ExtentC() const {
     return {params.problem_size.m(), nnz_columns_c};
   }
+
+  // CUTLASS_DEVICE
+  // ::cutlass::MatrixCoord UpdateOffsetB(const ::cutlass::MatrixCoord &offset) {
+  //   // TODO(tgale): Load column index here.
+  //   return {offset.row(), nnz_columns};
+  // }
 };
 
 // Helper to handle mixes of sparse and dense arguments.

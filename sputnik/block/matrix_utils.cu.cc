@@ -112,7 +112,6 @@ BlockSparseMatrix::BlockSparseMatrix(
   CUDA_CALL(cudaMalloc(
       &column_indices_gpu,
       num_elements_with_padding_ * sizeof(int)));
-  std::cout << "num indices = " << num_elements_with_padding_ << std::endl;
   Convert(
       sparse_matrix.ColumnIndices(),
       column_indices_gpu,
@@ -123,7 +122,6 @@ BlockSparseMatrix::BlockSparseMatrix(
   CUDA_CALL(cudaMalloc(
       &values_gpu,
       kNumValues * sizeof(float)));
-  std::cout << "num values = " << kNumValues << std::endl;
   Convert(sparse_matrix.Values(), values_gpu, kNumValues);
 
   // Allocate storage for the matrix.

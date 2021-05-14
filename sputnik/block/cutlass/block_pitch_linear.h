@@ -102,10 +102,13 @@ private:
 
 // Useful to switch on in specializations.
 struct BlockRowMajor {
-
   using TensorCoord = ::cutlass::MatrixCoord;
 
+  static const int kRank = 2;
+  static const int kStrideRank = 1;
+  using Index = int32_t;
   using LongIndex = int64_t;
+  using Stride = ::cutlass::Coord<kStrideRank, Index>;
 
   CUTLASS_HOST_DEVICE
   static TensorCoord to_pitch_linear(const ::cutlass::MatrixCoord &coord) {

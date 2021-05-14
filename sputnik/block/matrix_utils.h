@@ -35,6 +35,14 @@ class BlockSparseMatrix : public SparseMatrix {
 
   int BlockDim() const { return block_dim_; }
 
+  void Fill(float val) {
+    size_t n = NumElementsWithPadding() * BlockDim() * BlockDim();
+    for (int i = 0; i < n; ++i) {
+      values_[i] = val;
+    }
+  }
+
+
  private:
   int block_dim_;
 };

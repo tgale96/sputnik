@@ -60,7 +60,9 @@ struct DefaultBlockGemm {
   static_assert(::cutlass::platform::is_same<
 		OperatorClass, ::cutlass::arch::OpClassTensorOp>::value);
   static_assert(::cutlass::platform::is_same<
-		LayoutC, ::cutlass::layout::RowMajor>::value);
+		LayoutC, ::cutlass::layout::RowMajor>::value ||
+                ::cutlass::platform::is_same<
+                LayoutC, BlockRowMajor>::value);
 
   using Mma = typename BlockMma<
     kBlockSize, ElementA, LayoutA, kAlignmentA, ElementB,
@@ -69,8 +71,7 @@ struct DefaultBlockGemm {
     ThreadblockShape, WarpShape, InstructionShape, Stages,
     Operator>::ThreadblockMma;
 
-  static_assert(WarpShape::kK == ThreadblockShape::kK,
-		"Split-k not supported.");
+  static_assert(WarpShape::kK == ThreadblockShape::kK, "Split-k not supported.");
 
   using Epilogue = typename DefaultBlockEpilogue<
       kBlockSize, LayoutC, ThreadblockShape, typename Mma::Operator,

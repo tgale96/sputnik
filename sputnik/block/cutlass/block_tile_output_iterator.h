@@ -44,12 +44,16 @@ class BlockTileOutputIterator {
   static constexpr int kPredicates =
       ThreadMap::Shape::kColumn / kBlockSize;
 
+  using Index = typename Layout::Index;
   using LongIndex = typename Layout::LongIndex;
   using TensorCoord = typename Layout::TensorCoord;
 
   static int const kElementsPerAccess = ThreadMap::kElementsPerAccess;
   static int const kThreads = ThreadMap::kThreads;
   static int const kIterations = ThreadMap::Count::kTile;
+
+  using TensorRef = ::cutlass::TensorRef<Element, Layout>;
+  using ConstTensorRef = typename TensorRef::ConstTensorRef;
 
   // Register fragment type.
   static constexpr LongIndex kFragmentSize =
@@ -71,7 +75,7 @@ class BlockTileOutputIterator {
 
     // NOTE: layout.stride is always the block size.
     CUTLASS_HOST_DEVICE
-    Params(Layout const &layout) : BaseParams(
+    Params(int unused) : BaseParams(
         kBlockSize * int(sizeof(AccessType)) / kElementsPerAccess,
         make_OutputTileThreadMapDesc<ThreadMap>()) {}
   };
@@ -110,6 +114,11 @@ class BlockTileOutputIterator {
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < ThreadMap::Iterations::kColumn; ++i) {
       predicates_[i] = (kColumnOffset + i * kBlockSize) < extent.column();
+
+      if (threadIdx.x == 0) {
+        printf("tid.x %d: predicate[%d] = %d\n",
+               threadIdx.x, i, (int)predicates_[i]);
+      }
     }
 
     // Initialize internal state.
