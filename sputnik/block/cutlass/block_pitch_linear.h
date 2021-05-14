@@ -57,11 +57,11 @@ public:
 
   // Coordinate into a block.
   using TensorCoord = ::cutlass::layout::PitchLinearCoord;
-  
+
   //
   /// Methods
   //
-  
+
   // Constructor.
   CUTLASS_HOST_DEVICE
   BlockPitchLinear(Index ldm = 0): stride_(ldm) { }
@@ -78,7 +78,7 @@ public:
     // Contigous dimension is 0, strided dimension is 1.
     return LongIndex(coord.contiguous()) + LongIndex(coord.strided()) * LongIndex(stride_[0]);
   }
-  
+
   // Getter for layout stride.
   CUTLASS_HOST_DEVICE
   Index stride(int rank) const {
@@ -90,7 +90,7 @@ public:
   Index & stride(int rank) {
     return stride_[rank];
   }
-  
+
 private:
   //
   /// Data members
@@ -105,9 +105,11 @@ struct BlockRowMajor {
 
   using TensorCoord = BlockPitchLinear::TensorCoord;
 
+  using LongIndex = int64_t;
+
   CUTLASS_HOST_DEVICE
   static TensorCoord to_pitch_linear(const ::cutlass::MatrixCoord &coord) {
-    return {coord.column(), coord.row()};    
+    return {coord.column(), coord.row()};
   }
 };
 
@@ -117,12 +119,12 @@ struct BlockColumnMajor {
 
   CUTLASS_HOST_DEVICE
   static TensorCoord to_pitch_linear(const ::cutlass::MatrixCoord &coord) {
-    return {coord.row(), coord.column()};    
+    return {coord.row(), coord.column()};
   }
 };
-  
+
 }  // namespace cutlass
 }  // namespace block
 }  // namespace sputnik
 
-#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_PITCH_LINEAR_H_ 
+#endif  // THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_PITCH_LINEAR_H_

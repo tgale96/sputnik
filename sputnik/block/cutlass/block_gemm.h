@@ -5,13 +5,13 @@
 #include "sputnik/block/cutlass/op.h"
 #include "sputnik/block/cutlass/type_utils.h"
 
+#include "cutlass/gemm/gemm.h"
 #include "cutlass/gemm/kernel/gemm.h"
 
 namespace sputnik {
 namespace block {
 namespace cutlass {
 
-// Forward declare for Filter.
 template <
   typename Mma_,
   typename Epilogue_,
@@ -279,11 +279,93 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
   }
 };
 
-// Helper to handle mixes of sparse and dense arguments.
-template <typename Mma_, typename Epilogue_, typename ThreadblockSwizzle_>
-struct Config {
+template <typename Gemm, typename LayoutC>
+struct OutputConfig {
 
-  using Gemm = BlockGemm<Mma_, Epilogue_, ThreadblockSwizzle_>;
+  using Params = typename Gemm::Params;
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
+
+  using RetOffsetC = ::cutlass::MatrixCoord;
+  using RetExtentC = typename LayoutC::TensorCoord;
+
+  Params const &params;
+
+  CUTLASS_DEVICE
+  OutputConfig(Params const &params_, const GemmCoord &offset) : params(params_) {}
+
+  CUTLASS_DEVICE
+  bool EarlyExit(const GemmCoord &offset) const {
+    return params.grid_tiled_shape.m() <= offset.m() ||
+        params.grid_tiled_shape.n() <= offset.n();
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetC OffsetC(const GemmCoord &offset) const {
+    RetOffsetC threadblock_offset(
+         offset.m() * Gemm::Mma::Shape::kM,
+         offset.n() * Gemm::Mma::Shape::kN
+    );
+    return threadblock_offset;
+  }
+
+  CUTLASS_DEVICE
+  RetExtentC ExtentC() const {
+    return params.problem_size.mn();
+  }
+
+};
+
+// Specialization for blocksparse output.
+template <typename Gemm>
+struct OutputConfig<Gemm, BlockRowMajor> {
+  using Params = typename Gemm::Params;
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
+
+  using RetOffsetC = int;
+  using RetExtentC = BlockRowMajor::TensorCoord;
+
+  // The block dimension as an int.
+  static constexpr int kBlockSize =
+      Gemm::Epilogue::OutputTileIterator::kBlockSize;
+
+  Params const &params;
+  int offset_c, nnz_columns_c;
+
+  CUTLASS_DEVICE
+  OutputConfig(Params const & params_, const GemmCoord &offset) : params(params_) {
+    // NOTE: It's required that C & D have the same topology.
+    int *offset_ptr_c = (int*)params_.op_C.offsets;
+    int block_row_idx = offset.m();
+
+    offset_c = __ldg(offset_ptr_c + block_row_idx);
+
+    // Divide by blocksize to get columns.
+    nnz_columns_c = (__ldg(offset_ptr_c + block_row_idx + 1) - offset_c) /
+                    kBlockSize;
+  }
+
+  CUTLASS_DEVICE
+  bool EarlyExit(const GemmCoord &offset) const {
+    const int kColumnOffset =
+        offset.n() * Gemm::Mma::Shape::kN;
+    return nnz_columns_c <= kColumnOffset ||
+        params.grid_tiled_shape.m() <= offset.m();
+  }
+
+  CUTLASS_DEVICE
+      RetOffsetC OffsetC(const GemmCoord &offset) const {
+    return offset_c;
+  }
+
+  CUTLASS_DEVICE
+  RetExtentC ExtentC() const {
+    return {params.problem_size.m(), nnz_columns_c};
+  }
+};
+
+// Helper to handle mixes of sparse and dense arguments.
+template <typename Gemm>
+struct Config {
 
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
@@ -359,7 +441,12 @@ public:
   using WarpCount = typename Mma::WarpCount;
   static int const kThreadCount = 32 * WarpCount::kCount;
 
-  using Config = Config<Mma, Epilogue, ThreadblockSwizzle>;
+  // Configuration for input/output iterators.
+  using Config = Config<
+      BlockGemm<Mma, Epilogue, ThreadblockSwizzle>>;
+  using OutputConfig = OutputConfig<
+      BlockGemm<Mma, Epilogue, ThreadblockSwizzle>,
+      typename Epilogue::OutputTileIterator::Layout>;
 
   //
   // Structures
@@ -515,10 +602,8 @@ public:
         threadblock_swizzle.get_tile_offset(params.grid_tiled_shape);
 
     // Early exit if CTA is out of range
-    if (params.grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
-      params.grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
-      return;
-    }
+    OutputConfig bounds_checker(params, threadblock_tile_offset);
+    if (bounds_checker.EarlyExit(threadblock_tile_offset)) return;
 
     Config config(params, threadblock_tile_offset);
 
@@ -588,14 +673,13 @@ public:
     // Masked tile iterators constructed from members
     //
 
+    // Re-calculate the output meta-data to avoid wasting registers.
     threadblock_tile_offset =
         threadblock_swizzle.get_tile_offset(params.grid_tiled_shape);
 
-    //assume identity swizzle
-    ::cutlass::MatrixCoord threadblock_offset(
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      threadblock_tile_offset.n() * Mma::Shape::kN
-    );
+    OutputConfig output_config(params, threadblock_tile_offset);
+    auto threadblock_offset = output_config.OffsetC(threadblock_tile_offset);
+    auto extent_c = output_config.ExtentC();
 
     ElementC *ptr_C = static_cast<ElementC *>(params.op_C.data);
     ElementC *ptr_D = static_cast<ElementC *>(params.op_D.data);
@@ -608,7 +692,7 @@ public:
     typename Epilogue::OutputTileIterator iterator_C(
       params.params_C,
       ptr_C,
-      params.problem_size.mn(),
+      extent_c,
       thread_idx,
       threadblock_offset
     );
@@ -617,7 +701,7 @@ public:
     typename Epilogue::OutputTileIterator iterator_D(
       params.params_D,
       ptr_D,
-      params.problem_size.mn(),
+      extent_c,
       thread_idx,
       threadblock_offset
     );

@@ -2,6 +2,7 @@
 #define SPUTNIK_BLOCK_CUTLASS_BLOCK_TILE_OUTPUT_ITERATOR_H_
 
 #include "sputnik/block/arguments.h"
+#include "sputnik/block/cutlass/block_pitch_linear.h"
 
 #include "cutlass/arch/memory.h"
 #include "cutlass/array.h"
@@ -19,15 +20,27 @@ class BlockTileOutputIterator {
  public:
   using ThreadMap = ThreadMap_;
   using Element = Element;
-  using Layout = ::cutlass::layout::RowMajor;
+
+  using Layout = BlockRowMajor;
 
   // The block size as an integer.
   static constexpr int kBlockSize = AsInt<kBlockSize_>::value;
+
+  // The number of nonzeros in a block.
+  static constexpr int kBlockElements = kBlockSize * kBlockSize;
 
   // TODO(tgale): We can relax this without adding any dynamic
   // code. This might be needed for different tile configs.
   static_assert(ThreadMap::Delta::kColumn == kBlockSize,
                 "Column delta must equal block size.");
+
+  static_assert((Threadmap::Shape::kColumn % kBlockSize) == 0,
+                "Column size must be divisible by block size.");
+
+  // The number of predicates we need. Equal to the number of block
+  // in the complete output tile.
+  static constexpr int kPredicates =
+      ThreadMap::Shape::kColumn / kBlockSize;
 
   using LongIndex = typename Layout::LongIndex;
   using TensorCoord = typename Layout::TensorCoord;
@@ -36,12 +49,13 @@ class BlockTileOutputIterator {
   static int const kThreads = ThreadMap::kThreads;
   static int const kIterations = ThreadMap::Count::kTile;
 
-  using Fragment = ::cutlass::Array<
-    Element,
-    ThreadMap::Iterations::kColumn *
-    ThreadMap::Iterations::kRow *
-    ThreadMap::Iterations::kGroup *
-    ThreadMap::Iterations::kCluster * kElementsPerAccess>;
+  // Register fragment type.
+  static constexpr LongIndex kFragmentSize =
+      ThreadMap::Iterations::kColumn *
+      ThreadMap::Iterations::kRow *
+      ThreadMap::Iterations::kGroup *
+      ThreadMap::Iterations::kCluster * kElementsPerAccess;
+  using Fragment = ::cutlass::Array<Element, kFragmentSize>;
 
   using ::cutlass::epilogue::threadblock::PredicatedTileIteratorParams;
   using ::cutlass::epilogue::threadblock::make_OutputTileThreadMapDesc;
@@ -50,11 +64,24 @@ class BlockTileOutputIterator {
 
     CUTLASS_HOST_DEVICE Params() {}
 
+    // NOTE: layout.stride is always the block size.
     CUTLASS_HOST_DEVICE
     Params(Layout const &layout): PredicatedTileIteratorParams(
-        layout.stride(0) * int(sizeof(AccessType)) / kElementsPerAccess,
+        kBlockSize * int(sizeof(AccessType)) / kElementsPerAccess,
         make_OutputTileThreadMapDesc<ThreadMap>()) {}
   };
+
+  // Parameters with pre-computed offsets.
+  Params params_;
+
+  // Global memory pointer.
+  char *byte_pointer_;
+
+  // Blockwise predicates.
+  bool predicates_[kPredicates];
+
+  // State counters.
+  int state_[3];
 
   CUTLASS_DEVICE
   BlockTileOutputIterator(
@@ -66,11 +93,21 @@ class BlockTileOutputIterator {
     TensorCoord thread_offset = ThreadMap::initial_offset(thread_idx);
 
     // Add threadblock & thread offset.
-    byte_pointer_ = reinterpret_cast<uint8_t *>(pointer) +
-      LongIndex(thread_offset.row()) * LongIndex(params_.stride) +
-      LongIndex(thread_offset.column()) * sizeof(AccessType) / kElementsPerAccess;
+    byte_pointer_ = reinterpret_cast<char*>(pointer) +
+                    LongIndex(thread_offset.row()) *
+                    LongIndex(params_.stride) +
+                    LongIndex(thread_offset.column()) *
+                    sizeof(AccessType) / kElementsPerAccess;
     add_pointer_offset(threadblock_offset);
 
+    // These predicates are threadblock-wide.
+    const int kColumnOffset = threadblock_offset / kBlockElements;
+    CUTLASS_PRAGMA_UNROLL
+    for (int i = 0; i < ThreadMap::Iterations::kColumn; ++i) {
+      predicates[i] = (kColumnOffset + i * kBlockSize) < extent.column();
+    }
+
+    // Initialize internal state.
     state_[0] = state_[1] = state_[2] = 0;
   }
 
@@ -101,7 +138,11 @@ class BlockTileOutputIterator {
           CUTLASS_PRAGMA_UNROLL
           for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
             const int frag_idx = frag_row_idx * ThreadMap::Iterations::kColumn + column;
-            const int memory_idx = column * ThreadMap::Delta::kColumn / kElementsPerAccess;
+
+            // NOTE: We assume column strides are across block boundaries and statically
+            // enforce this. Thus, we scale the column index by the number of elements
+            // in a block.
+            const int memory_idx = column * kBlockElements / kElementsPerAccess;
             ::cutlass::arch::global_load<AccessType, sizeof(AccessType)>(
                  frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], true);
           }
@@ -149,7 +190,11 @@ class BlockTileOutputIterator {
           CUTLASS_PRAGMA_UNROLL
           for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
             const int frag_idx = frag_row_idx * ThreadMap::Iterations::kColumn + column;
-            const int memory_idx = column * ThreadMap::Delta::kColumn / kElementsPerAccess;
+
+            // NOTE: We assume column strides are across block boundaries and statically
+            // enforce this. Thus, we scale the column index by the number of elements
+            // in a block.
+            const int memory_idx = column * kBlockElements / kElementsPerAccess;
             cutlass::arch::global_store<AccessType, sizeof(AccessType)>(
                 frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], true);
           }
