@@ -68,13 +68,49 @@ typedef ::testing::Types<
     Problem<256, 8, 128, 256*128, 128>,  // Two tile rows.
     Problem<128, 8, 256, 256*128, 128>,  // Two tile columns.
     Problem<256, 8, 256, 256*128, 128>,  // 50% sparse, multi-row.
+    // Block 128 problems NT.
+    Problem<128, 8, 128, 128*128, 128, false, true>,
+    Problem<256, 8, 128, 256*128, 128, false, true>,
+    Problem<128, 8, 256, 256*128, 128, false, true>,
+    Problem<256, 8, 256, 256*128, 128, false, true>,
+    // Block 128 problems TN.
+    Problem<128, 8, 128, 128*128, 128, true>,
+    Problem<256, 8, 128, 256*128, 128, true>,
+    Problem<128, 8, 256, 256*128, 128, true>,
+    Problem<256, 8, 256, 256*128, 128, true>,
+    // Block 128 problems TT.
+    Problem<128, 8, 128, 128*128, 128, true, true>,
+    Problem<256, 8, 128, 256*128, 128, true, true>,
+    Problem<128, 8, 256, 256*128, 128, true, true>,
+    Problem<256, 8, 256, 256*128, 128, true, true>,
     // Larger problems NN.
     Problem<512, 512, 1024, 512*1024, 128>,
     Problem<512, 512, 1024, 256*1024, 128>,
     Problem<512, 512, 1024, 128*1024, 128>,
     Problem<1024, 1024, 1024, 1024*1024, 128>,
     Problem<1024, 1024, 1024, 512*1024, 128>,
-    Problem<1024, 1024, 1024, 256*1024, 128>
+    Problem<1024, 1024, 1024, 256*1024, 128>,
+    // Larger problems NT.
+    Problem<512, 512, 1024, 512*1024, 128, false, true>,
+    Problem<512, 512, 1024, 256*1024, 128, false, true>,
+    Problem<512, 512, 1024, 128*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, false, true>,
+    // Larger problems TN.
+    Problem<512, 512, 1024, 512*1024, 128, true>,
+    Problem<512, 512, 1024, 256*1024, 128, true>,
+    Problem<512, 512, 1024, 128*1024, 128, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true>,
+    // Larger problems TT.
+    Problem<512, 512, 1024, 512*1024, 128, true, true>,
+    Problem<512, 512, 1024, 256*1024, 128, true, true>,
+    Problem<512, 512, 1024, 128*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true, true>,
   > TestProblems;
 
 TYPED_TEST_SUITE(SddTest, TestProblems);

@@ -11,16 +11,16 @@ namespace cutlass {
 
 namespace {
 
-using sdd_mixed_b128_128x256x32x3_nn_align8_base =
+using sdd_mixed_b128_128x128x32x5_tt_align8_base =
   typename DefaultBlockGemm<
   BlockSize::k128,
-  // Non-transposed A operand.
+  // Transposed A operand.
   ::cutlass::half_t,
-  ::cutlass::layout::RowMajor,
+  ::cutlass::layout::ColumnMajor,
   8,
-  // Non-transposed B operand.
+  // Transposed B operand.
   ::cutlass::half_t,
-  ::cutlass::layout::RowMajor,
+  ::cutlass::layout::ColumnMajor,
   8,
   // C operand.
   ::cutlass::half_t,
@@ -38,16 +38,16 @@ using sdd_mixed_b128_128x256x32x3_nn_align8_base =
 >::GemmKernel;
 
 // Define named type
-struct sdd_mixed_b128_128x256x32x3_nn_align8 :
-  public sdd_mixed_b128_128x256x32x3_nn_align8_base { };
+struct sdd_mixed_b128_128x128x32x5_tt_align8 :
+  public sdd_mixed_b128_128x128x32x5_tt_align8_base { };
 
 }  // namespace
 
 
-bool can_launch_sdd_mixed_b128_128x256x32x3_nn_align8(
+bool can_launch_sdd_mixed_b128_128x128x32x5_tt_align8(
     const Matrix a, bool transpose_a,
     const Matrix b, bool transpose_b, BlockMatrix c) {
-  using Sdd = Kernel<sdd_mixed_b128_128x256x32x3_nn_align8>;
+  using Sdd = Kernel<sdd_mixed_b128_128x128x32x5_tt_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Sdd::Arguments args({shape.m, shape.n, shape.k},
@@ -61,16 +61,16 @@ bool can_launch_sdd_mixed_b128_128x256x32x3_nn_align8(
   ::cutlass::Status status = Sdd::KernelFn::can_implement(args);
   bool can_implement = status == ::cutlass::Status::kSuccess;
   can_implement &= c.block_size == BlockSize::k128;
-  can_implement &= !transpose_a && !transpose_b;
+  can_implement &= transpose_a && transpose_b;
   can_implement &= ValidMatmul(a, transpose_a, b, transpose_b, c);
   return can_implement;
 }
 
-cudaError_t launch_sdd_mixed_b128_128x256x32x3_nn_align8(
+cudaError_t launch_sdd_mixed_b128_128x128x32x5_tt_align8(
     const Matrix a, bool transpose_a,
     const Matrix b, bool transpose_b,
     BlockMatrix c, cudaStream_t stream) {
-  using Sdd = Kernel<sdd_mixed_b128_128x256x32x3_nn_align8>;
+  using Sdd = Kernel<sdd_mixed_b128_128x128x32x5_tt_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Sdd::Arguments args({shape.m, shape.n, shape.k},
