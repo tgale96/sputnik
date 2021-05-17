@@ -64,8 +64,17 @@ class SddTest : public ::testing::Test {
 
 typedef ::testing::Types<
     // Block 128 problems NN.
-    Problem<128, 8, 256, 128*256, 128>,
-    Problem<128, 8, 256, 128*128, 128>
+    Problem<128, 8, 128, 128*128, 128>,  // Minimum problem size.
+    Problem<256, 8, 128, 256*128, 128>,  // Two tile rows.
+    Problem<128, 8, 256, 256*128, 128>,  // Two tile columns.
+    Problem<256, 8, 256, 256*128, 128>,  // 50% sparse, multi-row.
+    // Larger problems NN.
+    Problem<512, 512, 1024, 512*1024, 128>,
+    Problem<512, 512, 1024, 256*1024, 128>,
+    Problem<512, 512, 1024, 128*1024, 128>,
+    Problem<1024, 1024, 1024, 1024*1024, 128>,
+    Problem<1024, 1024, 1024, 512*1024, 128>,
+    Problem<1024, 1024, 1024, 256*1024, 128>
   > TestProblems;
 
 TYPED_TEST_SUITE(SddTest, TestProblems);

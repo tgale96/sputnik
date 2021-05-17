@@ -15,8 +15,6 @@ namespace cutlass {
 using ::cutlass::epilogue::threadblock::make_OutputTileThreadMapDesc;
 
 // Mirrors ::cutlass::epilogue::threadblock::PredicatedTileIterator.
-//
-// TODO(tgale): We only need predicates for whole blocks. Add these.
 template <BlockSize kBlockSize_, typename ThreadMap_, typename Element_>
 class BlockTileOutputIterator {
  public:
@@ -31,18 +29,12 @@ class BlockTileOutputIterator {
   // The number of nonzeros in a block.
   static constexpr int kBlockElements = kBlockSize * kBlockSize;
 
-  // TODO(tgale): We can relax this without adding any dynamic
-  // code. This might be needed for different tile configs.
-  static_assert(ThreadMap::Delta::kColumn == kBlockSize,
-                "Column delta must equal block size.");
-
-  static_assert((ThreadMap::Shape::kColumn % kBlockSize) == 0,
-                "Column size must be divisible by block size.");
-
-  // The number of predicates we need. Equal to the number of block
-  // in the complete output tile.
-  static constexpr int kPredicates =
-      ThreadMap::Shape::kColumn / kBlockSize;
+  // TODO(tgale): To generalize to multiple sparse blocks per
+  // threadblock, we need to add support for multiple column
+  // indices to the dense rhs tile loader. Until we do this,
+  // make sure that we don't use invalid tile sizes.
+  static_assert(ThreadMap::Shape::kColumn == kBlockSize,
+                "Column size must be equal to block size.");
 
   using Index = typename Layout::Index;
   using LongIndex = typename Layout::LongIndex;
@@ -86,9 +78,6 @@ class BlockTileOutputIterator {
   // Global memory pointer.
   char *byte_pointer_;
 
-  // Blockwise predicates.
-  bool predicates_[kPredicates];
-
   // State counters.
   int state_[3];
 
@@ -108,18 +97,6 @@ class BlockTileOutputIterator {
                     LongIndex(thread_offset.column()) *
                     sizeof(AccessType) / kElementsPerAccess;
     add_pointer_offset(threadblock_offset);
-
-    // These predicates are threadblock-wide.
-    const int kColumnOffset = threadblock_offset / kBlockElements;
-    CUTLASS_PRAGMA_UNROLL
-    for (int i = 0; i < ThreadMap::Iterations::kColumn; ++i) {
-      predicates_[i] = (kColumnOffset + i * kBlockSize) < extent.column();
-
-      if (threadIdx.x == 0) {
-        printf("tid.x %d: predicate[%d] = %d\n",
-               threadIdx.x, i, (int)predicates_[i]);
-      }
-    }
 
     // Initialize internal state.
     state_[0] = state_[1] = state_[2] = 0;
@@ -152,16 +129,9 @@ class BlockTileOutputIterator {
           CUTLASS_PRAGMA_UNROLL
           for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
             const int frag_idx = frag_row_idx * ThreadMap::Iterations::kColumn + column;
-
-            // Get predicate for block.
-            bool guard = predicates_[column];
-
-            // NOTE: We assume column strides are across block boundaries and statically
-            // enforce this. Thus, we scale the column index by the number of elements
-            // in a block.
-            const int memory_idx = column * kBlockElements / kElementsPerAccess;
+            const int memory_idx = column * ThreadMap::Delta::kColumn / kElementsPerAccess;
             ::cutlass::arch::global_load<AccessType, sizeof(AccessType)>(
-                 frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], guard);
+                 frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], true);
           }
 
           if (row + 1 < ThreadMap::Iterations::kRow) {
@@ -207,16 +177,9 @@ class BlockTileOutputIterator {
           CUTLASS_PRAGMA_UNROLL
           for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
             const int frag_idx = frag_row_idx * ThreadMap::Iterations::kColumn + column;
-
-            // Get predicate for block.
-            bool guard = predicates_[column];
-
-            // NOTE: We assume column strides are across block boundaries and statically
-            // enforce this. Thus, we scale the column index by the number of elements
-            // in a block.
-            const int memory_idx = column * kBlockElements / kElementsPerAccess;
+            const int memory_idx = column * ThreadMap::Delta::kColumn / kElementsPerAccess;
             ::cutlass::arch::global_store<AccessType, sizeof(AccessType)>(
-                frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], guard);
+                frag_ptr[frag_idx], (void *)&memory_pointer[memory_idx], true);
           }
 
           if (row + 1 < ThreadMap::Iterations::kRow) {

@@ -28,12 +28,12 @@ using sdd_mixed_b128_128x256x32x3_nn_align8_base =
   float,
   ::cutlass::arch::OpClassTensorOp,
   ::cutlass::arch::Sm80,
-  ::cutlass::gemm::GemmShape<128, 256, 32>,
+  ::cutlass::gemm::GemmShape<128, 128, 32>,
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
   ::cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<8>,
-  3,
+  5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
 

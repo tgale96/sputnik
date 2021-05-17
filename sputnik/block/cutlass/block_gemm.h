@@ -313,6 +313,11 @@ struct OutputConfig {
     return params.problem_size.mn();
   }
 
+  template <typename T>
+  CUTLASS_DEVICE
+  T UpdateOffsetB(const T &offset) {
+    return offset;
+  }
 };
 
 // Specialization for blocksparse output.
@@ -327,6 +332,14 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   // The block dimension as an int.
   static constexpr int kBlockSize =
       Gemm::Epilogue::OutputTileIterator::kBlockSize;
+  static constexpr int kValuesPerBlock =
+      kBlockSize * kBlockSize;
+
+  // Element type for output matrix.
+  using Element = typename Gemm::Epilogue::OutputTileIterator::Element;
+
+  // Meta-data type for the output matrix.
+  using Meta = typename Type<Element>::Meta;
 
   Params const &params;
   int offset_c, nnz_columns_c;
@@ -342,6 +355,9 @@ struct OutputConfig<Gemm, BlockRowMajor> {
     // Divide by blocksize to get columns.
     nnz_columns_c = (__ldg(offset_ptr_c + block_row_idx + 1) - offset_c) /
                     kBlockSize;
+
+    // Update the offset based on this threadblock's column index.
+    offset_c += offset.n() * kValuesPerBlock;
   }
 
   CUTLASS_DEVICE
@@ -362,11 +378,15 @@ struct OutputConfig<Gemm, BlockRowMajor> {
     return {params.problem_size.m(), nnz_columns_c};
   }
 
-  // CUTLASS_DEVICE
-  // ::cutlass::MatrixCoord UpdateOffsetB(const ::cutlass::MatrixCoord &offset) {
-  //   // TODO(tgale): Load column index here.
-  //   return {offset.row(), nnz_columns};
-  // }
+  CUTLASS_DEVICE
+  ::cutlass::MatrixCoord UpdateOffsetB(const ::cutlass::MatrixCoord &offset) {
+    // Load the column index for the output block and pass
+    // it to the rhs tile loader.
+    Meta *index_ptr_c = (Meta*)params.op_C.indices;
+    int block_offset_c = offset_c / kValuesPerBlock;
+    int index = (int)__ldg(index_ptr_c + block_offset_c);
+    return {offset.row(), index};
+  }
 };
 
 // Helper to handle mixes of sparse and dense arguments.
@@ -621,7 +641,8 @@ public:
 
     // Compute initial location in logical coordinates
     auto tb_offset_A = config.OffsetA();
-    auto tb_offset_B = config.OffsetB();
+    auto tb_offset_B = bounds_checker.UpdateOffsetB(
+        config.OffsetB());
 
     // Compute position within threadblock
     int thread_idx = threadIdx.x;
