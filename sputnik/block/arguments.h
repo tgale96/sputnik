@@ -54,9 +54,12 @@ struct BlockMatrix {
   void *offsets;
   void *indices;
 
+  // Data for transposed iteration.
   void *offsets_t;
   void *indices_t;
   void *block_offsets;
+
+  // Data for sparse * sparse products.
 
   BlockMatrix(int rows_,
               int cols_,

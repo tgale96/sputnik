@@ -1,0 +1,48 @@
+#include "sputnik/block/bitmask/bitmask.h"
+#include "sputnik/block/bitmask/bit_matrix.h"
+
+namespace sputnik {
+namespace block {
+
+cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream) {
+  bool trans = m.offsets_t != nullptr;
+  int *offsets_d = trans ? m.offsets_t : m.offsets;
+  short *indices_d = trans ? m.indices_t : m.indices;
+
+  // Block domain constants.
+  int block_size = AsInt(m.block_size);
+  int nonzero_blocks = m.nonzeros / block_size;
+  int block_rows = m.rows / block_size;
+  int block_cols = m.cols / block_size;
+
+  // Copy the meta-data from the device.
+  std::vector<int> offsets(block_rows + 1);
+  std::vector<short> indices(nonzero_blocks);
+
+  CUDA_CALL(cudaMemcpyAsync(
+      offsets.data(), offsets_d,
+      offsets.size() * sizeof(int),
+      cudaMemcpyDeviceToHost, stream));
+  CUDA_CALL(cudaMemcpyAsync(
+      indices.data(), indices_d,
+      indices.size() * sizeof(short),
+      cudaMemcpyDeviceToHost, stream));
+
+  BitMatrix bmat(block_rows, block_cols);
+
+  for (int i = 0; i < block_rows; ++i) {
+    int start = offsets[i] / (block_size * block_size);
+    int end = offsets[i + 1] / (block_size * block_size);
+    for (int offset = start; offset < end; ++offset) {
+      int j = indices[offset] / block_size;
+      bmat.Set(i, j);
+    }
+  }
+
+  CUDA_CALL(cudaMemcpyAsync(
+      m.bitmask, bmat.Data(), bmat.Bytes(),
+      cudaMemcpyHostToDevice, stream));
+}
+
+}  // namespace block
+}  // namespace sputnik
