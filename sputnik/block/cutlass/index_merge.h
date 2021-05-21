@@ -38,7 +38,7 @@ struct BitVector {
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < kEntries; ++i) {
       if (i == entry_idx) {
-        out |= (bool)(data[i] & (1ull << idx));
+        out |= (bool)(data[i] & (1ull << bit_idx));
       }
     }
     return out;
@@ -128,8 +128,10 @@ struct IndexMerge {
              const GemmCoord &offset,
              Offset *smem) : data(smem) {
     // NOTE: Bitmasks are always stored contraction dimension contiguous.
-    int row_offset_a = offset.m() * Gemm::Shape::kM / kBlockSize / Mask::kBitsPerEntry;
-    int row_offset_b = offset.n() * Gemm::Shape::kN / kBlockSize / Mask::kBitsPerEntry;
+    int row_offset_a = offset.m() * Gemm::Mma::Shape::kM /
+                       kBlockSize / Mask::kBitsPerEntry;
+    int row_offset_b = offset.n() * Gemm::Mma::Shape::kN /
+                       kBlockSize / Mask::kBitsPerEntry;
     Storage *bitmask_a = (Storage*)op_a.bitmask + row_offset_a;
     Storage *bitmask_b = (Storage*)op_b.bitmask + row_offset_b;
 

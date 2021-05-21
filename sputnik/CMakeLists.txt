@@ -17,6 +17,7 @@ add_subdirectory(bias_relu)
 add_subdirectory(softmax)
 add_subdirectory(utils)
 add_subdirectory(block/transpose)
+add_subdirectory(block/bitmask)
 
 set(SPUTNIK_BDSD_TEST_SRCS)
 set(SPUTNIK_BDSD_BENCHMARK_SRCS)
@@ -33,6 +34,10 @@ add_subdirectory(block/sdd)
 set(SPUTNIK_BSDS_TEST_SRCS)
 set(SPUTNIK_BSDS_BENCHMARK_SRCS)
 add_subdirectory(block/sds)
+
+set(SPUTNIK_BDSS_TEST_SRCS)
+set(SPUTNIK_BDSS_BENCHMARK_SRCS)
+add_subdirectory(block/dss)
 
 # TODO(tgale): Clean up build.
 add_subdirectory(block/cutlass)
@@ -167,7 +172,16 @@ if (BUILD_TEST)
   list(FILTER SPUTNIK_BSDS_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
   set_source_files_properties(${SPUTNIK_BSDS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
   add_executable(sds_test ${SPUTNIK_BSDS_TEST_SRCS})
-  target_link_libraries(sds_test sputnik ${SPUTNIK_TEST_LIBS})  
+  target_link_libraries(sds_test sputnik ${SPUTNIK_TEST_LIBS})
+
+  # BDSS test build.
+  list(APPEND SPUTNIK_BDSS_TEST_SRCS ${SPUTNIK_TEST_SRCS})
+  
+  set(SPUTNIK_BDSS_TEST_CUDA_SRCS ${SPUTNIK_BDSS_TEST_SRCS})
+  list(FILTER SPUTNIK_BDSS_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
+  set_source_files_properties(${SPUTNIK_BDSS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  add_executable(dss_test ${SPUTNIK_BDSS_TEST_SRCS})
+  target_link_libraries(dss_test sputnik ${SPUTNIK_TEST_LIBS})  
 endif()
 
 # Optionally build the benchmark suite.

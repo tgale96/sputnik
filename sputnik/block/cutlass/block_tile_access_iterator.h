@@ -90,7 +90,6 @@ class BlockTileAccessIterator {
         : block_offsets((int*)op.block_offsets), steps_k(0) {}
   };
 
- protected:
   /// Internal pointer type permits fast address arithmetic
   using BytePointer = char *;
 
@@ -198,6 +197,9 @@ class BlockTileAccessIterator {
       add_pointer_offset(block_row_offset);
     }
   }
+
+  CUTLASS_HOST_DEVICE
+  BlockTileAccessIterator() {}
 
   // Overrides the internal iteration index
   CUTLASS_HOST_DEVICE
@@ -317,7 +319,6 @@ class BlockTileAccessIterator {
     return self;
   }
 
-  // No residue and perfect tiles - all accesses are valid.
   CUTLASS_HOST_DEVICE
   bool valid() const {
     return predicate_;

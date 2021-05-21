@@ -6,8 +6,8 @@ namespace block {
 
 cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream) {
   bool trans = m.offsets_t != nullptr;
-  int *offsets_d = trans ? m.offsets_t : m.offsets;
-  short *indices_d = trans ? m.indices_t : m.indices;
+  int *offsets_d = (int*)(trans ? m.offsets_t : m.offsets);
+  short *indices_d = (short*)(trans ? m.indices_t : m.indices);
 
   // Block domain constants.
   int block_size = AsInt(m.block_size);
@@ -42,6 +42,7 @@ cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream) {
   CUDA_CALL(cudaMemcpyAsync(
       m.bitmask, bmat.Data(), bmat.Bytes(),
       cudaMemcpyHostToDevice, stream));
+  return cudaGetLastError();
 }
 
 }  // namespace block

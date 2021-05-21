@@ -60,6 +60,7 @@ struct BlockMatrix {
   void *block_offsets;
 
   // Data for sparse * sparse products.
+  void *bitmask;
 
   BlockMatrix(int rows_,
               int cols_,
@@ -76,7 +77,8 @@ struct BlockMatrix {
         indices(const_cast<void*>(indices_)),
         offsets_t(nullptr),
         indices_t(nullptr),
-        block_offsets(nullptr) {}
+        block_offsets(nullptr),
+        bitmask(nullptr) {}
 
   BlockMatrix(int rows_,
               int cols_,
@@ -96,7 +98,30 @@ struct BlockMatrix {
         indices(const_cast<void*>(indices_)),
         offsets_t(const_cast<void*>(offsets_t_)),
         indices_t(const_cast<void*>(indices_t_)),
-        block_offsets(const_cast<void*>(block_offsets_)) {}
+        block_offsets(const_cast<void*>(block_offsets_)),
+        bitmask(nullptr) {}
+
+  BlockMatrix(int rows_,
+              int cols_,
+              BlockSize block_size_,
+              int nonzeros_,
+              void const *data_,
+              void const *offsets_,
+              void const *indices_,
+              void const *offsets_t_,
+              void const *indices_t_,
+              void const *block_offsets_,
+              void const *bitmask_)
+      : rows(rows_), cols(cols_),
+        block_size(block_size_),
+        nonzeros(nonzeros_),
+        data(const_cast<void*>(data_)),
+        offsets(const_cast<void*>(offsets_)),
+        indices(const_cast<void*>(indices_)),
+        offsets_t(const_cast<void*>(offsets_t_)),
+        indices_t(const_cast<void*>(indices_t_)),
+        block_offsets(const_cast<void*>(block_offsets_)),
+        bitmask(const_cast<void*>(bitmask_)) {}
 };
 
 struct Matrix {
@@ -149,6 +174,16 @@ struct MatmulShape {
     ldb = transpose_b ? k : n;
     ldc = n;
   }
+
+  MatmulShape(const BlockMatrix a, bool transpose_a,
+              const BlockMatrix b, bool transpose_b) {
+    m = transpose_a ? a.cols : a.rows;
+    k = transpose_a ? a.rows : a.cols;
+    n = transpose_b ? b.rows : b.cols;
+    lda = transpose_a ? m : k;
+    ldb = transpose_b ? k : n;
+    ldc = n;
+  }
 };
 
 template <typename TypeA, typename TypeB, typename TypeC>
@@ -179,7 +214,7 @@ inline void AllocateTransposeBuffers(BlockMatrix &a) {
   CUDA_CALL(cudaMalloc(&a.block_offsets, block_offsets_bytes));
 }
 
-inline void FreeTransposeBuffers(const BlockMatrix &a) {
+inline void FreeTransposeBuffers(BlockMatrix &a) {
   if (a.offsets_t != nullptr) {
     CUDA_CALL(cudaFree(a.offsets_t));
   }

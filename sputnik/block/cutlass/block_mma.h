@@ -406,7 +406,7 @@ struct BlockMma<kBlockSize, ElementA, LayoutA, kAlignmentA,
       typename MmaCore::MmaPolicy, Stages>;
 };
 
-// Specialization for Dense = N(Sparse) x N(Sparse) (DSS).
+// Specialization for Dense = N(Sparse) x T(Sparse) (DSS).
 //
 // Also specialized on row-major output and TensorOp.
 template <
@@ -479,8 +479,8 @@ struct BlockMma<kBlockSize, ElementA, BlockRowMajor, kAlignmentA,
   using AccessTypeB = ::cutlass::Array<ElementB, kAlignmentB>;
 
   using ShapeB = BlockPitchLinearShape<
-    ThreadblockShape::kN,
     ThreadblockShape::kK,
+    ThreadblockShape::kN,
     AsInt<kBlockSize>::value>;
   using IteratorB = BlockTileUnionIterator<
     ShapeB, ElementB, 0, ThreadMapB, AccessTypeB>;

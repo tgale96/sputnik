@@ -10,6 +10,10 @@ class BitMatrix {
  public:
   static constexpr int kAlignment = 64;
 
+  static size_t SizeInBytes(int rows, int columns) {
+    int column_entries = (columns + kAlignment - 1) / kAlignment;
+    return column_entries * rows * sizeof(uint64_t);
+  }
 
   BitMatrix(int rows, int columns) {
     int column_entries = (columns + kAlignment - 1) / kAlignment;
@@ -20,16 +24,16 @@ class BitMatrix {
 
   bool Get(int i, int j) const {
     int row_entry = i / kAlignment;
-    uint64_t entry = data[row_entry * columns_ + j];
+    uint64_t entry = data_[row_entry * columns_ + j];
 
     int bit_idx = i % kAlignment;
-    return (bool)(entry & (0b1 << bit_idx));
+    return (bool)(entry & (1ull << bit_idx));
   }
 
-  void Set(int i, int j, bool value) {
+  void Set(int i, int j) {
     int row_entry = i / kAlignment;
     int bit_idx = i % kAlignment;
-    data[row_entry * columns_ + j] |= ((uint64_t)value << bit_idx);
+    data_[row_entry * columns_ + j] |= (1ull << bit_idx);
   }
 
   uint64_t* Data() {
@@ -39,7 +43,7 @@ class BitMatrix {
   size_t Bytes() const {
     return data_.size() * sizeof(uint64_t);
   }
-  
+
  private:
   int rows_, columns_;
   std::vector<uint64_t> data_;

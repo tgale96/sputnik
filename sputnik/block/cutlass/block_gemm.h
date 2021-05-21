@@ -393,7 +393,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
     out.offsets = merger.OffsetPtrB();
 
     // Set the number of steps for predicated index loads.
-    out.steps_k = StepsK();
+    out.base_params.steps_k = StepsK();
     return out;
   }
 
