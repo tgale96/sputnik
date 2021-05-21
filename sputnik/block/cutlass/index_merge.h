@@ -1,6 +1,9 @@
 #ifndef SPUTNIK_BLOCK_CUTLASS_INDEX_MERGE_H_
 #define SPUTNIK_BLOCK_CUTLASS_INDEX_MERGE_H_
 
+#include "sputnik/block/cutlass/op.h"
+#include "cutlass/gemm/gemm.h"
+
 namespace sputnik {
 namespace block {
 namespace cutlass {
@@ -10,13 +13,15 @@ struct BitVector {
 
   using Storage = uint64_t;
 
-  static constexpr int kBitsPerEntry = ::cutlass::sizeof_bits<Storage>::value;
+  static constexpr int kBitsPerEntry = sizeof(Storage) * 8;
   static constexpr int kEntries = Elements / kBitsPerEntry;
 
   Storage data[Elements / kBitsPerEntry];
 
+  CUTLASS_DEVICE
   BitVector() {}
 
+  CUTLASS_DEVICE
   void Clear() {
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < kEntries; ++i) {
@@ -24,6 +29,7 @@ struct BitVector {
     }
   }
 
+  CUTLASS_DEVICE
   bool Get(int idx) {
     int entry_idx = idx / kBitsPerEntry;
     int bit_idx = idx % kBitsPerEntry;
@@ -38,7 +44,8 @@ struct BitVector {
     return out;
   }
 
-  bool SetLessThan(int idx) {
+  CUTLASS_DEVICE
+  void SetLessThan(int idx) {
     int entry_idx = idx / kBitsPerEntry;
     int bit_idx = idx % kBitsPerEntry;
     CUTLASS_PRAGMA_UNROLL
@@ -51,7 +58,18 @@ struct BitVector {
     }
   }
 
-  int SumWithMask(const BitVector<Elements> &m) {
+  CUTLASS_DEVICE
+  int Sum() const {
+    int out = 0;
+    CUTLASS_PRAGMA_UNROLL
+    for (int i = 0; i < kEntries; ++i) {
+      out += __popcll(data[i]);
+    }
+    return out;
+  }
+
+  CUTLASS_DEVICE
+  int SumWithMask(const BitVector<Elements> &m) const {
     int out = 0;
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < kEntries; ++i) {
@@ -61,12 +79,13 @@ struct BitVector {
   }
 };
 
-template <typename Gemm_, BlockSize kBlockSize_>
+template <typename Gemm_, int kBlockSize_>
 struct IndexMerge {
   // NOTE: We only support block size 128 for now.
-  static_assert(kBlockSize_ == BlockSize::k128);
+  static_assert(kBlockSize_ == 128);
 
   using Gemm = Gemm_;
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
 
   // The number of threads in the threadblock.
   static constexpr int kThreads = Gemm::kThreadCount;
@@ -75,7 +94,7 @@ struct IndexMerge {
   static constexpr int kMaxContraction = 32 * 1024;
 
   // Block size as an integer.
-  static constexpr int kBlockSize = AsInt<kBlockSize_>::value;
+  static constexpr int kBlockSize = kBlockSize_;
 
   // The number of blocks in each contraction.
   static constexpr int kOffsets = kMaxContraction / kBlockSize;
@@ -92,15 +111,22 @@ struct IndexMerge {
   static constexpr int kSmemBytes = kOffsets * 2;
 
   // Mask storage type.
-  using Storage = Mask::Storage;
+  using Storage = typename Mask::Storage;
 
   // Offset type.
   using Offset = uint8_t;
 
-  __shared__ Offset data[kSmemBytes];
+  Offset *data;
+  int steps_k;
 
   CUTLASS_DEVICE
-  IndexMerge(Op op_a, Op op_b, int problem_size_k, const GemmCoord &offset) {
+  IndexMerge() {}
+
+  CUTLASS_DEVICE
+  IndexMerge(Op op_a, Op op_b,
+             int problem_size_k,
+             const GemmCoord &offset,
+             Offset *smem) : data(smem) {
     // NOTE: Bitmasks are always stored contraction dimension contiguous.
     int row_offset_a = offset.m() * Gemm::Shape::kM / kBlockSize / Mask::kBitsPerEntry;
     int row_offset_b = offset.n() * Gemm::Shape::kN / kBlockSize / Mask::kBitsPerEntry;
@@ -125,15 +151,16 @@ struct IndexMerge {
     for (int i = 0; i < Mask::kEntries; ++i) {
       op_union.data[i] = mask_a.data[i] & mask_b.data[i];
     }
+    steps_k = op_union.Sum();
 
     // Set the block offsets for each operand.
+    Mask prefix;
+    prefix.Clear();
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < kOffsetsPerThread; ++i) {
       int bit_idx = threadIdx.x + kThreads * i;
 
       // Mask the prefix and sum to get the offset.
-      Mask prefix;
-      prefix.Clear();
       prefix.SetLessThan(bit_idx);
 
       Offset offset_a = (Offset)mask_a.SumWithMask(prefix);
@@ -152,7 +179,22 @@ struct IndexMerge {
       }
     }
   }
-}
+
+  CUTLASS_DEVICE
+  int StepsK() const {
+    return steps_k;
+  }
+
+  CUTLASS_DEVICE
+  Offset* OffsetPtrA() const {
+    return data;
+  }
+
+  CUTLASS_DEVICE
+  Offset* OffsetPtrB() const {
+    return data + kOffsets;
+  }
+};
 
 }  // namespace cutlass
 }  // namespace block

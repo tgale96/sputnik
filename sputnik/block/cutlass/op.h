@@ -15,11 +15,11 @@ struct Op {
   // is arange(nblock) and we don't need to explicitly construct it.
   void * block_offsets;
 
-  int ld;
+  // Bitmask representation of the sparse matrix. Useful for
+  // sparse * sparse products.
+  void * bitmask;
 
-  // TODO(tgale): Including this in our op structure is a hack.
-  // find a better way to pass this to our iterators.
-  int steps_k;
+  int ld;
 
   // Constructor for non-transposed sparse matrix.
   CUTLASS_HOST_DEVICE
@@ -31,7 +31,8 @@ struct Op {
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
         block_offsets(nullptr),
-        ld(ld_), steps_k(0) {}
+        bitmask(nullptr),
+        ld(ld_) {}
 
   // Constructor for transposed sparse matrix.
   CUTLASS_HOST_DEVICE
@@ -44,7 +45,8 @@ struct Op {
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
         block_offsets(const_cast<void*>(block_offsets_)),
-        ld(ld_), steps_k(0) {}
+        bitmask(nullptr),
+        ld(ld_) {}
 
   // Constructor for dense matrix.
   CUTLASS_HOST_DEVICE
@@ -53,7 +55,23 @@ struct Op {
         offsets(nullptr),
         indices(nullptr),
         block_offsets(nullptr),
-        ld(ld_), steps_k(0) {}
+        bitmask(nullptr),
+        ld(ld_) {}
+
+  // Constructor for sparse matrix with bitmask.
+  CUTLASS_HOST_DEVICE
+  Op(void const *data_,
+     void const *offsets_,
+     void const *indices_,
+     void const *block_offsets_,
+     void const *bitmask_,
+     int ld_)
+      : data(const_cast<void*>(data_)),
+        offsets(const_cast<void*>(offsets_)),
+        indices(const_cast<void*>(indices_)),
+        block_offsets(const_cast<void*>(block_offsets_)),
+        bitmask(const_cast<void*>(bitmask_)),
+        ld(ld_) {}
 };
 
 }  // namespace cutlass

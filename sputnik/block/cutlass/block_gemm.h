@@ -2,6 +2,7 @@
 #define THIRD_PARTY_SPUTNIK_BLOCK_CUTLASS_BLOCK_GEMM_H_
 
 #include "sputnik/block/cutlass/block_pitch_linear.h"
+#include "sputnik/block/cutlass/index_merge.h"
 #include "sputnik/block/cutlass/op.h"
 #include "sputnik/block/cutlass/type_utils.h"
 
@@ -24,6 +25,7 @@ template <
   typename LayoutB>
 struct ConfigHelper {
 
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
 
@@ -35,13 +37,16 @@ struct ConfigHelper {
   using ParamsA = typename Gemm::Mma::IteratorA::Params;
   using ParamsB = typename Gemm::Mma::IteratorB::Params;
 
+  static constexpr int kSmemBytes = 1;
+
   Params const &params;
-  const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
+  const GemmCoord &offset;
 
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
-	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
-    params(params_), threadblock_tile_offset(threadblock_tile_offset_) {}
+	       const GemmCoord &offset_,
+               uint8_t *smem) :
+    params(params_), offset(offset_) {}
 
   CUTLASS_HOST_DEVICE
   static RetParamsA ItArgsA(Arguments args) {
@@ -66,7 +71,7 @@ struct ConfigHelper {
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
     RetOffsetA tb_offset_A{
-      threadblock_tile_offset.m() * Gemm::Mma::Shape::kM, 0
+      offset.m() * Gemm::Mma::Shape::kM, 0
     };
     return tb_offset_A;
   }
@@ -74,7 +79,7 @@ struct ConfigHelper {
   CUTLASS_DEVICE
   RetOffsetB OffsetB() const {
     RetOffsetB tb_offset_B{
-      0, threadblock_tile_offset.n() * Gemm::Mma::Shape::kN
+      0, offset.n() * Gemm::Mma::Shape::kN
     };
     return tb_offset_B;
   }
@@ -90,6 +95,9 @@ template <
   typename Gemm,
   typename LayoutB>
 struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
+
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
+
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
 
@@ -107,17 +115,20 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   static const int kBlockSize = Gemm::Mma::IteratorA::Shape::kBlock *
     Gemm::Mma::IteratorA::Shape::kBlock;
 
+  static constexpr int kSmemBytes = 1;
+
   Params const &params;
-  const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
+  const GemmCoord &offset;
   int offset_a, nnz_a;
 
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
-	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
-    params(params_), threadblock_tile_offset(threadblock_tile_offset_) {
+	       const GemmCoord &offset_,
+               uint8_t *smem) :
+    params(params_), offset(offset_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_a = (int*)params_.op_A.offsets;
-    int block_row_idx = threadblock_tile_offset.m();
+    int block_row_idx = offset.m();
 
     offset_a = __ldg(offset_ptr_a + block_row_idx);
 
@@ -169,7 +180,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   CUTLASS_DEVICE
   RetOffsetB OffsetB() const {
     RetOffsetB tb_offset_B{
-      0, threadblock_tile_offset.n() * Gemm::Mma::Shape::kN
+      0, offset.n() * Gemm::Mma::Shape::kN
     };
     return tb_offset_B;
   }
@@ -185,6 +196,8 @@ template <
   typename Gemm,
   typename LayoutA>
 struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
+
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
 
@@ -202,17 +215,20 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
   static const int kBlockSize = Gemm::Mma::IteratorB::Shape::kBlock *
     Gemm::Mma::IteratorB::Shape::kBlock;
 
+  static constexpr int kSmemBytes = 1;
+
   Params const &params;
-  const ::cutlass::gemm::GemmCoord &threadblock_tile_offset;
+  const GemmCoord &offset;
   int offset_b, nnz_b;
 
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
-	       const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
-    params(params_), threadblock_tile_offset(threadblock_tile_offset_) {
+	       const GemmCoord &offset_,
+               uint8_t *smem) :
+    params(params_), offset(offset_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_b = (int*)params_.op_B.offsets;
-    int block_cow_idx = threadblock_tile_offset.n();
+    int block_cow_idx = offset.n();
 
     offset_b = __ldg(offset_ptr_b + block_cow_idx);
 
@@ -259,7 +275,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
     RetOffsetA tb_offset_A{
-      threadblock_tile_offset.m() * Gemm::Mma::Shape::kM, 0
+      offset.m() * Gemm::Mma::Shape::kM, 0
     };
     return tb_offset_A;
   }
@@ -276,6 +292,124 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
     // in the constructor.
     int nnz_rows_b = nnz_b / Gemm::Mma::IteratorB::Shape::kBlock;
     return (nnz_rows_b + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
+  }
+};
+
+template <typename Gemm>
+struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
+  using Arguments = typename Gemm::Arguments;
+  using Params = typename Gemm::Params;
+
+  using RetParamsA = Op;
+  using RetParamsB = Op;
+  using RetOffsetA = int;
+  using RetOffsetB = int;
+
+  using ParamsA = typename Gemm::Mma::IteratorA::Params;
+  using ParamsB = typename Gemm::Mma::IteratorB::Params;
+
+  using ElementA = typename Gemm::Mma::IteratorA::Element;
+  using MetaA = typename Type<ElementA>::Meta;
+
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
+
+  // Dimension of the sparse blocks.
+  static constexpr int kBlockSize = Gemm::Mma::IteratorA::Shape::kBlock;
+
+  // The number of elements in a sparse block
+  static constexpr int kBlockElements = kBlockSize * kBlockSize;
+
+  // Helper to perform the index merge.
+  using IndexMerge = IndexMerge<Gemm, kBlockSize>;
+
+  static constexpr int kSmemBytes = IndexMerge::kSmemBytes;
+
+  Params const &params;
+  int offset_a, nnz_a, offset_b, nnz_b;
+
+  IndexMerge merger;
+
+  CUTLASS_DEVICE
+  ConfigHelper(Params const &params_,
+	       const GemmCoord &offset,
+               uint8_t *smem) :
+      params(params_),
+      merger(params_.op_A,
+             params_.op_B,
+             params_.problem_size.k(),
+             offset,
+             smem) {
+    // Load the offset and number of nonzeros.
+    int *offset_ptr_a = (int*)params_.op_A.offsets;
+    int block_row_idx = offset.m();
+
+    // In scalar elements.
+    offset_a = __ldg(offset_ptr_a + block_row_idx);
+    nnz_a = __ldg(offset_ptr_a + block_row_idx + 1) - offset_a;
+
+    int *offset_ptr_b = (int*)params_.op_B.offsets;
+    int block_column_idx = offset.n();
+
+    // In scalar elements.
+    offset_b = __ldg(offset_ptr_b + block_column_idx);
+    nnz_b = __ldg(offset_ptr_b + block_column_idx + 1) - offset_b;
+  }
+
+  CUTLASS_HOST_DEVICE
+  static RetParamsA ItArgsA(Arguments args) {
+    return args.op_A;
+  }
+
+  CUTLASS_HOST_DEVICE
+  static RetParamsB ItArgsB(Arguments args) {
+    return args.op_B;
+  }
+
+  CUTLASS_DEVICE
+  ParamsA UpdateParamsA(ParamsA const &params) const {
+    // NOTE: This should be elided by the compiler for
+    // the non-transposed kernels where we do not use
+    // explicit block offsets.
+    ParamsA out = params;
+    out.base_params.block_offsets +=
+        offset_a / kBlockElements;
+
+    out.offsets = merger.OffsetPtrA();
+
+    // Set the number of steps for predicated index loads.
+    out.base_params.steps_k = StepsK();
+    return out;
+  }
+
+  CUTLASS_DEVICE
+  ParamsB UpdateParamsB(ParamsB const &params) const {
+    // NOTE: This should be elided by the compiler for
+    // the non-transposed kernels where we do not use
+    // explicit block offsets.
+    ParamsB out = params;
+    out.base_params.block_offsets +=
+        offset_b / kBlockElements;
+
+    out.offsets = merger.OffsetPtrB();
+
+    // Set the number of steps for predicated index loads.
+    out.steps_k = StepsK();
+    return out;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetA OffsetA() const {
+    return offset_a;
+  }
+
+  CUTLASS_DEVICE
+  RetOffsetB OffsetB() const {
+    return offset_b;
+  }
+
+  CUTLASS_DEVICE
+  int StepsK() const {
+    return merger.StepsK();
   }
 };
 
@@ -393,6 +527,8 @@ struct OutputConfig<Gemm, BlockRowMajor> {
 template <typename Gemm>
 struct Config {
 
+  using GemmCoord = ::cutlass::gemm::GemmCoord;
+
   using Arguments = typename Gemm::Arguments;
   using Params = typename Gemm::Params;
 
@@ -406,13 +542,17 @@ struct Config {
 
   using Helper = ConfigHelper<Gemm, LayoutA, LayoutB>;
 
+  // The number of bytes of shared memory needed.
+  static constexpr int kSmemBytes = Helper::kSmemBytes;
+
   // Underlying helper.
   Helper helper;
 
   CUTLASS_DEVICE
   Config(Params const &params_,
-	 const ::cutlass::gemm::GemmCoord &threadblock_tile_offset_) :
-    helper(params_, threadblock_tile_offset_) {}
+	 const GemmCoord &offset_,
+         uint8_t* smem) :
+      helper(params_, offset_, smem) {}
 
   CUTLASS_HOST_DEVICE
   static typename Helper::RetParamsA ItArgsA(Arguments args) {
@@ -621,6 +761,8 @@ public:
   /// Executes one GEMM
   CUTLASS_DEVICE
   void operator()(Params const &params, SharedStorage &shared_storage) {
+    __shared__ uint8_t config_shared[Config::kSmemBytes];
+
     // Compute threadblock location
     ThreadblockSwizzle threadblock_swizzle;
 
@@ -631,7 +773,7 @@ public:
     OutputConfig bounds_checker(params, threadblock_tile_offset);
     if (bounds_checker.EarlyExit(threadblock_tile_offset)) return;
 
-    Config config(params, threadblock_tile_offset);
+    Config config(params, threadblock_tile_offset, config_shared);
 
     ElementA *ptr_A = static_cast<ElementA *>(params.op_A.data);
     ElementB *ptr_B = static_cast<ElementB *>(params.op_B.data);

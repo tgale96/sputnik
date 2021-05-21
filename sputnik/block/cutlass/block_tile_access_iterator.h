@@ -90,7 +90,7 @@ class BlockTileAccessIterator {
         : block_offsets((int*)op.block_offsets), steps_k(0) {}
   };
 
- private:
+ protected:
   /// Internal pointer type permits fast address arithmetic
   using BytePointer = char *;
 
@@ -192,8 +192,6 @@ class BlockTileAccessIterator {
     set_iteration_index(0);
 
     if (kAdvanceRank) {
-      // TODO(tgale): Offset the block_offsets to the start for this block.
-      //
       // Offset to the first block.
       add_block_offset();
     } else {
