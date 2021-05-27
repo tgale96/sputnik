@@ -72,8 +72,25 @@ class DssTest : public ::testing::Test {
 
 typedef ::testing::Types<
     // Block 128 problems NT.
-    Problem<128, 128, 128, 128*128, 128*128, 128, false, true>,
-  > TestProblems;
+    Problem<128, 128, 128, 128*128, 128*128, 128, false, true>,  // Minimum problem size.
+    Problem<128, 256, 128, 128*256, 128*256, 128, false, true>,  // Two inner loops.
+    Problem<256, 128, 128, 128*256, 128*128, 128, false, true>,  // Two rows of blocks.
+    Problem<128, 128, 256, 128*128, 128*256, 128, false, true>,  // Two columns of blocks.
+    Problem<128, 256, 128, 128*128, 128*256, 128, false, true>,  // 50% sparse lhs.
+    Problem<128, 256, 128, 128*256, 128*128, 128, false, true>,  // 50% sparse rhs.
+    Problem<128, 256, 128, 128*128, 128*128, 128, false, true>,  // 50% sparse both.
+    Problem<256, 128, 128, 128*128, 128*128, 128, false, true>,  // 50% lhs, multi-row.
+    Problem<128, 128, 256, 128*128, 128*128, 128, false, true>,  // 50% rhs, multi-col.
+    Problem<256, 128, 128, 128*128, 128*128, 128, false, true>,  // 50% both, multi-both.
+    Problem<256, 256, 256, 128*256, 256*128, 128, false, true>,  // 50% both, two loops.
+    // Larger problems NT.
+    Problem<512, 512, 512, 512*512, 512*512, 128, false, true>,
+    Problem<512, 512, 512, 256*512, 256*512, 128, false, true>,
+    Problem<512, 512, 512, 128*512, 128*512, 128, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, false, true>,
+    > TestProblems;
 
 TYPED_TEST_SUITE(DssTest, TestProblems);
 
@@ -116,22 +133,22 @@ TYPED_TEST(DssTest, Dss) {
   if (!this->kTransposeB) FreeTransposeBuffers(rhs_args);
 
   // DEBUG
-  std::cout << "Running SDS!" << std::endl;
-  CudaMatrix<half> tmp_rhs_gpu(rhs);
-  CudaBlockSparseMatrix<half> tmp_out_gpu(
-      this->kDimM, this->kDimN, this->kDimM * this->kDimN,
-      this->kBlockDim, RANDOM_UNIFORM, &this->generator_,
-      /*pad_rows_to=*/1);
-  CUDA_CALL(Matmul(lhs_args, false,
-                   Arg(tmp_rhs_gpu), true,
-                   Arg(tmp_out_gpu), 0));
-  CUDA_CALL(cudaStreamSynchronize(nullptr));
+  // std::cout << "Running SDS!" << std::endl;
+  // CudaMatrix<half> tmp_rhs_gpu(rhs);
+  // CudaBlockSparseMatrix<half> tmp_out_gpu(
+  //     this->kDimM, this->kDimN, this->kDimM * this->kDimN,
+  //     this->kBlockDim, RANDOM_UNIFORM, &this->generator_,
+  //     /*pad_rows_to=*/1);
+  // CUDA_CALL(Matmul(lhs_args, false,
+  //                  Arg(tmp_rhs_gpu), true,
+  //                  Arg(tmp_out_gpu), 0));
+  // CUDA_CALL(cudaStreamSynchronize(nullptr));
 
-  double out = 0;
-  for (int i = 0; i < 128; ++i) {
-    out += lhs.Values()[i] * rhs.Values()[i];
-  }
-  std::cout << "output = " << out << std::endl;
+  // double out = 0;
+  // for (int i = 0; i < 128; ++i) {
+  //   out += lhs.Values()[i] * rhs.Values()[i];
+  // }
+  // std::cout << "output = " << out << std::endl;
 
   // Verify the results.
   sputnik::Matrix expected =

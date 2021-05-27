@@ -63,10 +63,10 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
                pointer, extent, thread_id,
                block_row_offset),
       offsets(params.offsets) {
-    if (threadIdx.x == 0) {
-      printf("tid.x %d: block_row_offset %d\n",
-             threadIdx.x, block_row_offset);
-    }
+    // if (threadIdx.x == 0) {
+    //   printf("tid.x %d: block_row_offset %d\n",
+    //          threadIdx.x, block_row_offset);
+    // }
     if (!kAdvanceRank) {
       iterator.current_offset_ = -1;
       add_block_offset();
@@ -93,10 +93,10 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
     int offset_to_block = (int)*offsets;
     ++offsets;
 
-    if (threadIdx.x == 0) {
-      printf("tid.x %d: offset_to_bock %d\n",
-             threadIdx.x, offset_to_block);
-    }
+    // if (threadIdx.x == 0) {
+    //   printf("tid.x %d: offset_to_bock %d\n",
+    //          threadIdx.x, offset_to_block);
+    // }
 
     if (kAdvanceRank) {
       int absolute_offset = __ldg(
@@ -113,10 +113,10 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
       // Offset to the next block in the union.
       int relative_offset = offset_to_block - iterator.current_offset_ - 1;
 
-      if (threadIdx.x == 0) {
-        printf("tid.x %d: relative_offset %d, kBytesPerBlock %d\n",
-               threadIdx.x, relative_offset, Base::kBytesPerBlock);
-      }
+      // if (threadIdx.x == 0) {
+      //   printf("tid.x %d: relative_offset %d, kBytesPerBlock %d\n",
+      //          threadIdx.x, relative_offset, Base::kBytesPerBlock);
+      // }
       iterator.pointer_ += Base::kBytesPerBlock * relative_offset;
       iterator.current_offset_ = offset_to_block;
     }
@@ -142,10 +142,10 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
   CUTLASS_HOST_DEVICE
   AccessType *get() const {
-    if (threadIdx.x == 0) {
-      printf("tid.x %d: get(), valid = %d\n",
-             threadIdx.x, (int)valid());
-    }
+    // if (threadIdx.x == 0) {
+    //   printf("tid.x %d: get(), valid = %d\n",
+    //          threadIdx.x, (int)valid());
+    // }
     return iterator.get();
   }
 
