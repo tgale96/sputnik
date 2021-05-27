@@ -12,12 +12,12 @@ namespace cutlass {
 
 namespace {
 
-using dss_mixed_b128_128x128x32x5_nn_align8_base =
+using dss_mixed_b128_128x128x32x5_tn_align8_base =
   typename DefaultBlockGemm<
   BlockSize::k128,
-  // Non-transposed A operand.
+  // Transposed A operand.
   ::cutlass::half_t,
-  BlockRowMajor,
+  BlockColumnMajor,
   8,
   // Non-transposed B operand.
   ::cutlass::half_t,
@@ -39,16 +39,16 @@ using dss_mixed_b128_128x128x32x5_nn_align8_base =
 >::GemmKernel;
 
 // Define named type
-struct dss_mixed_b128_128x128x32x5_nn_align8 :
-  public dss_mixed_b128_128x128x32x5_nn_align8_base { };
+struct dss_mixed_b128_128x128x32x5_tn_align8 :
+  public dss_mixed_b128_128x128x32x5_tn_align8_base { };
 
 }  // namespace
 
 
-bool can_launch_dss_mixed_b128_128x128x32x5_nn_align8(
+bool can_launch_dss_mixed_b128_128x128x32x5_tn_align8(
     const BlockMatrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b, Matrix c) {
-  using Dss = Kernel<dss_mixed_b128_128x128x32x5_nn_align8>;
+  using Dss = Kernel<dss_mixed_b128_128x128x32x5_tn_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Dss::Arguments args({shape.m, shape.n, shape.k},
@@ -63,24 +63,31 @@ bool can_launch_dss_mixed_b128_128x128x32x5_nn_align8(
   bool can_implement = status == ::cutlass::Status::kSuccess;
   can_implement &= a.block_size == BlockSize::k128;
   can_implement &= b.block_size == BlockSize::k128;
-  can_implement &= !transpose_a && !transpose_b;
+  can_implement &= transpose_a && !transpose_b;
   can_implement &= shape.k <= 32 * 1024;
   can_implement &= ValidMatmul(a, transpose_a, b, transpose_b, c);
   return can_implement;
 }
 
-cudaError_t launch_dss_mixed_b128_128x128x32x5_nn_align8(
+cudaError_t launch_dss_mixed_b128_128x128x32x5_tn_align8(
     const BlockMatrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b,
     Matrix c, cudaStream_t stream) {
   CHECK(a.bitmask);
+  CHECK(a.offsets_t);
+  CHECK(a.indices_t);
+  CHECK(a.block_offsets);
   CHECK(b.bitmask);
   CHECK(b.offsets_t);
   CHECK(b.indices_t);
   CHECK(b.block_offsets);
 
   // Produce the transpose meta-data.
-  cudaError_t custatus = Transpose(b, stream);
+  cudaError_t custatus = Transpose(a, stream);
+  if (custatus != cudaSuccess) {
+    return custatus;
+  }
+  custatus = Transpose(b, stream);
   if (custatus != cudaSuccess) {
     return custatus;
   }
@@ -98,12 +105,17 @@ cudaError_t launch_dss_mixed_b128_128x128x32x5_nn_align8(
     return custatus;
   }
 
-  using Dss = Kernel<dss_mixed_b128_128x128x32x5_nn_align8>;
+  using Dss = Kernel<dss_mixed_b128_128x128x32x5_tn_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Dss::Arguments args({shape.m, shape.n, shape.k},
                       {1.0f, 0.0f},
-                      {a.data, a.offsets, a.indices, nullptr, a.bitmask, shape.lda},
+                      {a.data,
+                       a.offsets_t,
+                       a.indices_t,
+                       a.block_offsets,
+                       a.bitmask,
+                       shape.lda},
                       {b.data,
                        b.offsets_t,
                        b.indices_t,

@@ -95,6 +95,30 @@ typedef ::testing::Types<
     Problem<128, 128, 256, 128*128, 128*128, 128, false, true>,
     Problem<256, 128, 128, 128*128, 128*128, 128, false, true>,
     Problem<256, 256, 256, 128*256, 256*128, 128, false, true>,
+    // Block 128 problems TN.
+    Problem<128, 128, 128, 128*128, 128*128, 128, true>,
+    Problem<128, 256, 128, 128*256, 128*256, 128, true>,
+    Problem<256, 128, 128, 128*256, 128*128, 128, true>,
+    Problem<128, 128, 256, 128*128, 128*256, 128, true>,
+    Problem<128, 256, 128, 128*128, 128*256, 128, true>,
+    Problem<128, 256, 128, 128*256, 128*128, 128, true>,
+    Problem<128, 256, 128, 128*128, 128*128, 128, true>,
+    Problem<256, 128, 128, 128*128, 128*128, 128, true>,
+    Problem<128, 128, 256, 128*128, 128*128, 128, true>,
+    Problem<256, 128, 128, 128*128, 128*128, 128, true>,
+    Problem<256, 256, 256, 128*256, 256*128, 128, true>,
+    // Block 128 problems TT.
+    Problem<128, 128, 128, 128*128, 128*128, 128, true, true>,
+    Problem<128, 256, 128, 128*256, 128*256, 128, true, true>,
+    Problem<256, 128, 128, 128*256, 128*128, 128, true, true>,
+    Problem<128, 128, 256, 128*128, 128*256, 128, true, true>,
+    Problem<128, 256, 128, 128*128, 128*256, 128, true, true>,
+    Problem<128, 256, 128, 128*256, 128*128, 128, true, true>,
+    Problem<128, 256, 128, 128*128, 128*128, 128, true, true>,
+    Problem<256, 128, 128, 128*128, 128*128, 128, true, true>,
+    Problem<128, 128, 256, 128*128, 128*128, 128, true, true>,
+    Problem<256, 128, 128, 128*128, 128*128, 128, true, true>,
+    Problem<256, 256, 256, 128*256, 256*128, 128, true, true>,
     // Larger problems NN.
     Problem<512, 512, 512, 512*512, 512*512, 128>,
     Problem<512, 512, 512, 256*512, 256*512, 128>,
@@ -109,6 +133,20 @@ typedef ::testing::Types<
     Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, false, true>,
     Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, false, true>,
     Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, false, true>,
+    // Larger problems TN.
+    Problem<512, 512, 512, 512*512, 512*512, 128, true>,
+    Problem<512, 512, 512, 256*512, 256*512, 128, true>,
+    Problem<512, 512, 512, 128*512, 128*512, 128, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true>,
+    // Larger problems TT.
+    Problem<512, 512, 512, 512*512, 512*512, 128, true, true>,
+    Problem<512, 512, 512, 256*512, 256*512, 128, true, true>,
+    Problem<512, 512, 512, 128*512, 128*512, 128, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, true>,
     > TestProblems;
 
 TYPED_TEST_SUITE(DssTest, TestProblems);

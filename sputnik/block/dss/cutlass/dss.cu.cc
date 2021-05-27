@@ -46,10 +46,10 @@ static const bool k1 = RegisterKernel(can_launch_dss_mixed_b128_128x128x32x5_nt_
                                       launch_dss_mixed_b128_128x128x32x5_nt_align8);
 static const bool k2 = RegisterKernel(can_launch_dss_mixed_b128_128x128x32x5_nn_align8,
                                       launch_dss_mixed_b128_128x128x32x5_nn_align8);
-// static const bool k3 = RegisterKernel(can_launch_dss_mixed_b128_128x128x32x5_tn_align8,
-//                                       launch_dss_mixed_b128_128x128x32x5_tn_align8);
-// static const bool k4 = RegisterKernel(can_launch_dss_mixed_b128_128x128x32x5_tt_align8,
-//                                       launch_dss_mixed_b128_128x128x32x5_tt_align8);
+static const bool k3 = RegisterKernel(can_launch_dss_mixed_b128_128x128x32x5_tn_align8,
+                                      launch_dss_mixed_b128_128x128x32x5_tn_align8);
+static const bool k4 = RegisterKernel(can_launch_dss_mixed_b128_128x128x32x5_tt_align8,
+                                      launch_dss_mixed_b128_128x128x32x5_tt_align8);
 
 }  // namespace
 
