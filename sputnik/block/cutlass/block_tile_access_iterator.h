@@ -178,9 +178,6 @@ class BlockTileAccessIterator {
       : pointer_(reinterpret_cast<BytePointer>(
             const_cast<NonConstPointer>(pointer))),
         extent_(extent), current_offset_(-kBytesPerBlock), params_(params) {
-    // TODO(tgale): Do we need to possibly transpose this initial
-    // coordinate?
-    //
     // Add thread offset to pointer.
     Layout layout(kStride);
     const TensorCoord thread_offset = ThreadMap::initial_offset(thread_id);
@@ -265,13 +262,6 @@ class BlockTileAccessIterator {
 	iteration_contiguous_ *
 	(ThreadMap::Delta::kContiguous * ::cutlass::sizeof_bits<Element>::value) / 8) +
         iteration_vector_;
-    // if (threadIdx.x == 0 && valid()) {
-    //   for (int i = 0; i < 8; ++i) {
-    //     printf("tid.x %d, load[%d] = %f\n",
-    //            threadIdx.x, i, (float)out->data()[i]);
-    //   }
-    // }
-
     return out;
   }
 

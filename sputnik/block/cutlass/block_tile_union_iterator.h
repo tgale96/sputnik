@@ -32,6 +32,7 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
   using TensorView = typename Base::TensorView;
   using TensorCoord = typename Base::TensorCoord;
   using Pointer = typename Base::Pointer;
+  using BytePointer = typename Base::BytePointer;
   using NonConstPointer = typename Base::NonConstPointer;
 
   struct Params {
@@ -59,18 +60,27 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
       TensorCoord extent,
       int thread_id,
       int block_row_offset) :
-      iterator(params.base_params,
-               pointer, extent, thread_id,
-               block_row_offset),
       offsets(params.offsets) {
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: block_row_offset %d\n",
-    //          threadIdx.x, block_row_offset);
-    // }
-    if (!kAdvanceRank) {
+    iterator.pointer_ = reinterpret_cast<BytePointer>(
+        const_cast<NonConstPointer>(pointer));
+    iterator.params_ = params.base_params;
+
+    // Add thread offset to pointer.
+    Layout layout(Base::kStride);
+    const TensorCoord thread_offset = ThreadMap::initial_offset(thread_id);
+    add_pointer_offset(layout(thread_offset));
+
+    iterator.predicate_ = true;
+    iterator.iteration_block_ = 0;
+    set_iteration_index(0);
+
+    if (kAdvanceRank) {
+      iterator.current_offset_ = -Base::kBytesPerBlock;
+    } else {
+      add_pointer_offset(block_row_offset);
       iterator.current_offset_ = -1;
-      add_block_offset();
     }
+    add_block_offset();
   }
 
   CUTLASS_HOST_DEVICE
@@ -93,11 +103,6 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
     int offset_to_block = (int)*offsets;
     ++offsets;
 
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: offset_to_bock %d\n",
-    //          threadIdx.x, offset_to_block);
-    // }
-
     if (kAdvanceRank) {
       int absolute_offset = __ldg(
           iterator.params_.block_offsets + offset_to_block);
@@ -113,10 +118,6 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
       // Offset to the next block in the union.
       int relative_offset = offset_to_block - iterator.current_offset_ - 1;
 
-      // if (threadIdx.x == 0) {
-      //   printf("tid.x %d: relative_offset %d, kBytesPerBlock %d\n",
-      //          threadIdx.x, relative_offset, Base::kBytesPerBlock);
-      // }
       iterator.pointer_ += Base::kBytesPerBlock * relative_offset;
       iterator.current_offset_ = offset_to_block;
     }
@@ -142,10 +143,6 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
   CUTLASS_HOST_DEVICE
   AccessType *get() const {
-    // if (threadIdx.x == 0) {
-    //   printf("tid.x %d: get(), valid = %d\n",
-    //          threadIdx.x, (int)valid());
-    // }
     return iterator.get();
   }
 

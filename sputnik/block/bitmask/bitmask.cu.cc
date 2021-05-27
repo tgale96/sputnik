@@ -12,8 +12,8 @@ cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream) {
   // Block domain constants.
   int block_size = AsInt(m.block_size);
   int nonzero_blocks = m.nonzeros;
-  int block_rows = m.rows / block_size;
-  int block_cols = m.cols / block_size;
+  int block_rows = (trans ? m.cols : m.rows) / block_size;
+  int block_cols = (trans ? m.rows : m.cols) / block_size;
 
   // Copy the meta-data from the device.
   std::vector<int> offsets(block_rows + 1);

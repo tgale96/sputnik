@@ -14,9 +14,10 @@ cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream);
 // out into functions that give us the allocation size.
 // Then the user can do the allocation themselves.
 inline void AllocateBitmaskBuffers(BlockMatrix &m) {
+  bool trans = m.offsets_t != nullptr;
   int block_size = AsInt(m.block_size);
-  int block_rows = m.rows / block_size;
-  int block_cols = m.cols / block_size;
+  int block_rows = (trans ? m.cols : m.rows) / block_size;
+  int block_cols = (trans ? m.rows : m.cols) / block_size;
   size_t bytes = BitMatrix::SizeInBytes(block_rows, block_cols);
   CUDA_CALL(cudaMalloc(&m.bitmask, bytes));
 }
