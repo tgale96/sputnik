@@ -23,17 +23,19 @@ class BitMatrix {
   }
 
   bool Get(int i, int j) const {
-    int row_entry = i / kAlignment;
-    uint64_t entry = data_[row_entry * columns_ + j];
+    int column_entries = columns_ / kAlignment;
+    int column_entry = j / kAlignment;
+    uint64_t entry = data_[i * column_entries + column_entry];
 
-    int bit_idx = i % kAlignment;
+    int bit_idx = j % kAlignment;
     return (bool)(entry & (1ull << bit_idx));
   }
 
   void Set(int i, int j) {
-    int row_entry = i / kAlignment;
-    int bit_idx = i % kAlignment;
-    data_[row_entry * columns_ + j] |= (1ull << bit_idx);
+    int column_entries = columns_ / kAlignment;
+    int column_entry = j / kAlignment;
+    int bit_idx = j % kAlignment;
+    data_[i * column_entries + column_entry] |= (1ull << bit_idx);
   }
 
   uint64_t* Data() {

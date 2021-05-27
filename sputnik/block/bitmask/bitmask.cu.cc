@@ -11,7 +11,7 @@ cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream) {
 
   // Block domain constants.
   int block_size = AsInt(m.block_size);
-  int nonzero_blocks = m.nonzeros / block_size;
+  int nonzero_blocks = m.nonzeros;
   int block_rows = m.rows / block_size;
   int block_cols = m.cols / block_size;
 
@@ -29,7 +29,6 @@ cudaError_t Bitmask(BlockMatrix m, cudaStream_t stream) {
       cudaMemcpyDeviceToHost, stream));
 
   BitMatrix bmat(block_rows, block_cols);
-
   for (int i = 0; i < block_rows; ++i) {
     int start = offsets[i] / (block_size * block_size);
     int end = offsets[i + 1] / (block_size * block_size);

@@ -15,6 +15,7 @@
 
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/dss/dss.h"
+#include "sputnik/block/sds/sds.h"
 #include "sputnik/block/bitmask/bitmask.h"
 #include "sputnik/block/matrix_utils.h"
 
@@ -113,6 +114,24 @@ TYPED_TEST(DssTest, Dss) {
   CUDA_CALL(cudaStreamSynchronize(nullptr));
   if (this->kTransposeA) FreeTransposeBuffers(lhs_args);
   if (!this->kTransposeB) FreeTransposeBuffers(rhs_args);
+
+  // DEBUG
+  std::cout << "Running SDS!" << std::endl;
+  CudaMatrix<half> tmp_rhs_gpu(rhs);
+  CudaBlockSparseMatrix<half> tmp_out_gpu(
+      this->kDimM, this->kDimN, this->kDimM * this->kDimN,
+      this->kBlockDim, RANDOM_UNIFORM, &this->generator_,
+      /*pad_rows_to=*/1);
+  CUDA_CALL(Matmul(lhs_args, false,
+                   Arg(tmp_rhs_gpu), true,
+                   Arg(tmp_out_gpu), 0));
+  CUDA_CALL(cudaStreamSynchronize(nullptr));
+
+  double out = 0;
+  for (int i = 0; i < 128; ++i) {
+    out += lhs.Values()[i] * rhs.Values()[i];
+  }
+  std::cout << "output = " << out << std::endl;
 
   // Verify the results.
   sputnik::Matrix expected =

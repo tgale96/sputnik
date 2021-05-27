@@ -248,9 +248,6 @@ class BlockTileAccessIterator {
     // tile in the 'advance' direction.
     pointer_ += kIncAdvance;
 
-    // TODO(tgale): On the last iteration this update will go
-    // one off the end of the block_offset array. We should
-    // predicate this pre-fetching
     ++iteration_block_;
     if (iteration_block_ >= kIterationsBlock) {
       iteration_block_ = 0;
@@ -268,6 +265,13 @@ class BlockTileAccessIterator {
 	iteration_contiguous_ *
 	(ThreadMap::Delta::kContiguous * ::cutlass::sizeof_bits<Element>::value) / 8) +
         iteration_vector_;
+    if (threadIdx.x == 0 && valid()) {
+      for (int i = 0; i < 8; ++i) {
+        printf("tid.x %d, load[%d] = %f\n",
+               threadIdx.x, i, (float)out->data()[i]);
+      }
+    }
+
     return out;
   }
 

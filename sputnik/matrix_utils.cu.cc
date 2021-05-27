@@ -47,7 +47,7 @@ __global__ void ConvertKernel(const int *in, short *out, int n) {
   int idx = threadIdx.x + blockIdx.x * blockDim.x;
   if (idx >= n) return;
   out[idx] = static_cast<short>(in[idx]);
-}  
+}
 
 __global__ void ConvertKernel(const int *in_i, short2 *out, int n) {
   const int2 *in = reinterpret_cast<const int2 *>(in_i);
@@ -79,7 +79,7 @@ __global__ void ConvertKernel(const half *in, float *out, int n) {
   int idx = threadIdx.x + blockIdx.x * blockDim.x;
   if (idx >= n) return;
   out[idx] = static_cast<int>(in[idx]);
-}    
+}
 
 __global__ void ConvertKernel(const short2 *in, int *out_i, int n) {
   int2 *out = reinterpret_cast<int2 *>(out_i);
@@ -192,7 +192,7 @@ cudaError_t Convert(const short *in, int *out, int n) {
   int blocks_per_grid = (n + threads_per_block - 1) / threads_per_block;
   ConvertKernel<<<blocks_per_grid, threads_per_block, 0, 0>>>(in, out, n);
   return cudaGetLastError();
-}  
+}
 
 template<>
 cudaError_t Convert(const float *in, float *out, int n) {
@@ -694,6 +694,6 @@ template Matrix::Matrix(const CudaMatrix<half2> &);
 template Matrix::Matrix(const CudaMatrix<half> &);
 template cudaError_t Convert(const short2*, int*, int);
 template cudaError_t Convert(const short*, int*, int);
-template cudaError_t Convert(const int*, short*, int);    
+template cudaError_t Convert(const int*, short*, int);
 
 }  // namespace sputnik

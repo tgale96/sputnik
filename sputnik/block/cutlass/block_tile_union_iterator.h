@@ -63,6 +63,10 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
                pointer, extent, thread_id,
                block_row_offset),
       offsets(params.offsets) {
+    if (threadIdx.x == 0) {
+      printf("tid.x %d: block_row_offset %d\n",
+             threadIdx.x, block_row_offset);
+    }
     if (!kAdvanceRank) {
       iterator.current_offset_ = -1;
       add_block_offset();
@@ -83,11 +87,16 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
   void add_block_offset() {
     // Do nothing if we're out of work to do.
     if (iterator.params_.steps_k == 0) return;
-    ++iterator.params_.steps_k;
+    --iterator.params_.steps_k;
 
     // Load the next offset from shared memory.
     int offset_to_block = (int)*offsets;
     ++offsets;
+
+    if (threadIdx.x == 0) {
+      printf("tid.x %d: offset_to_bock %d\n",
+             threadIdx.x, offset_to_block);
+    }
 
     if (kAdvanceRank) {
       int absolute_offset = __ldg(
@@ -101,11 +110,13 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
       // Update our current offset and pointer for next iteration.
       iterator.current_offset_ = absolute_offset;
     } else {
-      // Advance to the start of the next block.
-      iterator.pointer_ += Base::kIncBlock;
-
       // Offset to the next block in the union.
       int relative_offset = offset_to_block - iterator.current_offset_ - 1;
+
+      if (threadIdx.x == 0) {
+        printf("tid.x %d: relative_offset %d, kBytesPerBlock %d\n",
+               threadIdx.x, relative_offset, Base::kBytesPerBlock);
+      }
       iterator.pointer_ += Base::kBytesPerBlock * relative_offset;
       iterator.current_offset_ = offset_to_block;
     }
@@ -113,11 +124,28 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
-    iterator.add_tile_offset(tile_offset_);
+    // TODO(tgale): This function only supports increments by one
+    // tile in the 'advance' direction.
+    iterator.pointer_ += Base::kIncAdvance;
+
+    ++iterator.iteration_block_;
+    if (iterator.iteration_block_ >= Base::kIterationsBlock) {
+      iterator.iteration_block_ = 0;
+
+      // Increment to the start of the next block.
+      if (!kAdvanceRank) iterator.pointer_ += Base::kIncBlock;
+
+      // Offset to the next sparse block.
+      add_block_offset();
+    }
   }
 
   CUTLASS_HOST_DEVICE
   AccessType *get() const {
+    if (threadIdx.x == 0) {
+      printf("tid.x %d: get(), valid = %d\n",
+             threadIdx.x, (int)valid());
+    }
     return iterator.get();
   }
 
