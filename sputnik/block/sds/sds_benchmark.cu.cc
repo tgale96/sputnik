@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sputnik/cuda_utils.h"
-#include "sputnik/block/dsd/dsd.h"
+#include "sputnik/block/sds/sds.h"
 #include "sputnik/block/matrix_utils.h"
 #include "sputnik/timer.h"
 
@@ -43,7 +43,7 @@ void BenchmarkArgs(benchmark::internal::Benchmark* b) {
   }
 }
 
-void BM_Dsd(benchmark::State& state) {
+void BM_Sds(benchmark::State& state) {
   const int kDimM = state.range(0);
   const int kDimK = state.range(1);
   const int kDimN = state.range(2);
@@ -52,7 +52,12 @@ void BM_Dsd(benchmark::State& state) {
   const bool kTransposeB = state.range(5);
   const int kBlockDim = 128;
 
-  // Create the sparse matrix on gpu.
+  // Need to set nonzeros differently if
+  // we want to generalize.
+  CHECK_EQ(kDimM, kDimK);
+  CHECK_EQ(kDimN, kDimK);
+
+  // Create the lhs matrix on gpu.
   absl::BitGen generator;
   int oda = kTransposeA ? kDimK : kDimM;
   int lda = kTransposeA ? kDimM : kDimK;
@@ -61,18 +66,21 @@ void BM_Dsd(benchmark::State& state) {
       RANDOM_UNIFORM, &generator,
       /*pad_rows_to=*/1);
 
-  // Create the dense matrix on gpu
+  // Create the rhs matrix on gpu
   int odb = kTransposeB ? kDimN : kDimK;
   int ldb = kTransposeB ? kDimK : kDimN;
   CudaMatrix<half> rhs_matrix(odb, ldb, &generator);
 
   // Create the output matrix on gpu.
-  CudaMatrix<half> out_matrix(kDimM, kDimN, &generator);
+  CudaBlockSparseMatrix<half> out_matrix(
+      kDimM, kDimN, kNonZeros, kBlockDim,
+      RANDOM_UNIFORM, &generator,
+      /*pad_rows_to=*/1);
 
   // Argument form.
   BlockMatrix lhs = Arg(lhs_matrix);
   Matrix rhs = Arg(rhs_matrix);
-  Matrix out = Arg(out_matrix);
+  BlockMatrix out = Arg(out_matrix);
 
   // Allocate the transpose workspace if necessary.
   if (kTransposeA) AllocateTransposeBuffers(lhs);
@@ -108,15 +116,16 @@ void BM_Dsd(benchmark::State& state) {
   if (kTransposeA) FreeTransposeBuffers(lhs);
 
   // Report throughput.
+  double density = (double)kNonZeros / (kDimM * kDimN);
   int64_t flops = (int64_t)state.iterations() * kIterations *
-                  lhs_matrix.NumElementsWithPadding() *
-                  kBlockDim * kBlockDim * kDimN * 2;
+                  kDimM * kDimN * kDimK * 2 *
+                  density * density;
   state.counters["FLOPS"] = benchmark::Counter(
       flops, benchmark::Counter::kIsRate,
       benchmark::Counter::OneK::kIs1000);
 }
 
-BENCHMARK(BM_Dsd)->Apply(BenchmarkArgs)->UseManualTime()->MinTime(1e-2);
+BENCHMARK(BM_Sds)->Apply(BenchmarkArgs)->UseManualTime()->MinTime(1e-2);
 
 }  // namespace block
 }  // namespace sputnik

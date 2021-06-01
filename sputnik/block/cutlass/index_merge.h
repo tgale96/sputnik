@@ -135,20 +135,20 @@ struct IndexMerge {
              const GemmCoord &offset,
              Offset *smem) : data(smem) {
     // NOTE: Bitmasks are always stored contraction dimension contiguous.
-    int row_offset_a = offset.m();
-    int row_offset_b = offset.n();
+    const int kBlockColumns = problem_size_k / kBlockSize;
+    const int kMaskColumns = (kBlockColumns + Mask::kBitsPerEntry - 1) /
+                             Mask::kBitsPerEntry;
+    int row_offset_a = offset.m() * kMaskColumns;
+    int row_offset_b = offset.n() * kMaskColumns;
 
     Storage *bitmask_a = (Storage*)op_a.bitmask + row_offset_a;
     Storage *bitmask_b = (Storage*)op_b.bitmask + row_offset_b;
 
     // Load bitmasks for both operands.
     Mask mask_a, mask_b;
-    int mask_loads_k = ((problem_size_k / kBlockSize) + Mask::kBitsPerEntry - 1) /
-                       Mask::kBitsPerEntry;
-
     CUTLASS_PRAGMA_UNROLL
     for (int i = 0; i < Mask::kEntries; ++i) {
-      if (i < mask_loads_k) {
+      if (i < kMaskColumns) {
         mask_a.data[i] = bitmask_a[i];
         mask_b.data[i] = bitmask_b[i];
       }

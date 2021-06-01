@@ -163,7 +163,7 @@ class BlockTileAccessIterator {
  public:
   /// Constructs a TileIterator from its precomputed state, threadblock offset,
   /// and thread ID
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   BlockTileAccessIterator(
       /// Precomputed parameters object
       Params const &params,
@@ -195,11 +195,11 @@ class BlockTileAccessIterator {
     }
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   BlockTileAccessIterator() {}
 
   // Overrides the internal iteration index
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   void set_iteration_index(int index) {
     iteration_vector_ = index % kAccessesPerVector;
     int residual_access = index / kAccessesPerVector;
@@ -209,7 +209,7 @@ class BlockTileAccessIterator {
   }
 
   // Adds a pointer offset in units of Element
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   void add_pointer_offset(LongIndex pointer_offset) {
     pointer_ += kElementBytes * pointer_offset;
   }
@@ -255,7 +255,7 @@ class BlockTileAccessIterator {
   }
 
   // Returns a pointer
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   AccessType *get() const {
     AccessType *out = reinterpret_cast<AccessType *>(
 	pointer_ +
@@ -266,7 +266,7 @@ class BlockTileAccessIterator {
   }
 
   // Increment and return an instance to self.
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   BlockTileAccessIterator &operator++() {
     ++iteration_vector_;
     if (iteration_vector_ < kAccessesPerVector) {
@@ -306,19 +306,19 @@ class BlockTileAccessIterator {
   }
 
   // Increment and return an instance to self.
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   BlockTileAccessIterator operator++(int) {
     BlockTileAccessIterator self(*this);
     operator++();
     return self;
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   bool valid() const {
     return predicate_;
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   void clear_mask() {
     predicate_ = false;
   }

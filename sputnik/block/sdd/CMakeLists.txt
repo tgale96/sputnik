@@ -37,3 +37,9 @@ if (BUILD_TEST)
   file(GLOB TMP *_test.cu.cc)
   set(SPUTNIK_BSDD_TEST_SRCS ${SPUTNIK_BSDD_TEST_SRCS} ${TMP} PARENT_SCOPE)
 endif()
+
+# Conditionally gather the benchmark sources.
+if (BUILD_BENCHMARK)
+  file(GLOB TMP *_benchmark.cu.cc)
+  set(SPUTNIK_BSDD_BENCHMARK_SRCS ${SPUTNIK_BSDD_BENCHMARK_SRCS} ${TMP} PARENT_SCOPE)
+endif()

@@ -53,7 +53,7 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
  public:
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   BlockTileUnionIterator(
       Params const &params,
       Pointer pointer,
@@ -83,12 +83,12 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
     add_block_offset();
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   void set_iteration_index(int index) {
     return iterator.set_iteration_index(index);
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   void add_pointer_offset(LongIndex pointer_offset) {
     iterator.add_pointer_offset(pointer_offset);
   }
@@ -96,7 +96,7 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
   CUTLASS_DEVICE
   void add_block_offset() {
     // Do nothing if we're out of work to do.
-    if (iterator.params_.steps_k == 0) return;
+    if (iterator.params_.steps_k <= 0) return;
     --iterator.params_.steps_k;
 
     // Load the next offset from shared memory.
@@ -141,30 +141,30 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
     }
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   AccessType *get() const {
     return iterator.get();
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   BlockTileUnionIterator &operator++() {
     ++iterator;
     return *this;
   }
 
-    CUTLASS_HOST_DEVICE
+    CUTLASS_DEVICE
   BlockTileUnionIterator operator++(int) {
     BlockTileUnionIterator self(*this);
     operator++();
     return self;
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   bool valid() const {
     return iterator.valid();
   }
 
-  CUTLASS_HOST_DEVICE
+  CUTLASS_DEVICE
   void clear_mask() {
     iterator.clear_mask();
   }

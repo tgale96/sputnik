@@ -70,6 +70,8 @@ class DssTest : public ::testing::Test {
   absl::BitGen generator_;
 };
 
+// TODO(tgale): Make our test harness more efficient so that we
+// can test larger problems (up to 32k).
 typedef ::testing::Types<
     // Block 128 problems NN.
     Problem<128, 128, 128, 128*128, 128*128, 128>,  // Minimum problem size.
