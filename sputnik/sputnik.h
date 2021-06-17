@@ -16,6 +16,7 @@
 #define THIRD_PARTY_SPUTNIK_SPUTNIK_H_
 
 #include "sputnik/bias_relu/bias_relu.h"
+#include "sputnik/block/arguments.h"
 #include "sputnik/block/dsd/dsd.h"
 #include "sputnik/block/dds/dds.h"
 #include "sputnik/block/sdd/sdd.h"
