@@ -16,6 +16,11 @@
 #define THIRD_PARTY_SPUTNIK_SPUTNIK_H_
 
 #include "sputnik/bias_relu/bias_relu.h"
+#include "sputnik/block/dsd/dsd.h"
+#include "sputnik/block/dds/dds.h"
+#include "sputnik/block/sdd/sdd.h"
+#include "sputnik/block/sds/sds.h"
+#include "sputnik/block/dss/dss.h"
 #include "sputnik/depthwise/cuda_depthwise.h"
 #include "sputnik/sddmm/cuda_sddmm.h"
 #include "sputnik/softmax/softmax.h"
