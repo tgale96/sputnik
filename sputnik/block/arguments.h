@@ -70,8 +70,8 @@ struct BlockMatrix {
               void const *offsets_,
               void const *indices_)
       : rows(rows_), cols(cols_),
-        block_size(block_size_),
         nonzeros(nonzeros_),
+        block_size(block_size_),
         data(const_cast<void*>(data_)),
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
@@ -91,8 +91,8 @@ struct BlockMatrix {
               void const *indices_t_,
               void const *block_offsets_)
       : rows(rows_), cols(cols_),
-        block_size(block_size_),
         nonzeros(nonzeros_),
+        block_size(block_size_),
         data(const_cast<void*>(data_)),
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
@@ -113,8 +113,8 @@ struct BlockMatrix {
               void const *block_offsets_,
               void const *bitmask_)
       : rows(rows_), cols(cols_),
-        block_size(block_size_),
         nonzeros(nonzeros_),
+        block_size(block_size_),
         data(const_cast<void*>(data_)),
         offsets(const_cast<void*>(offsets_)),
         indices(const_cast<void*>(indices_)),
