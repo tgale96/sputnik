@@ -18,6 +18,7 @@ add_subdirectory(softmax)
 add_subdirectory(utils)
 add_subdirectory(block/transpose)
 add_subdirectory(block/bitmask)
+add_subdirectory(block/row_indices)
 
 set(SPUTNIK_BDSD_TEST_SRCS)
 set(SPUTNIK_BDSD_BENCHMARK_SRCS)
@@ -104,6 +105,7 @@ install(FILES "block/dds/dds.h" DESTINATION "${INSTALL_BASE}/block/dds")
 install(FILES "block/sdd/sdd.h" DESTINATION "${INSTALL_BASE}/block/sdd")
 install(FILES "block/sds/sds.h" DESTINATION "${INSTALL_BASE}/block/sds")
 install(FILES "block/dss/dss.h" DESTINATION "${INSTALL_BASE}/block/dss")
+install(FILES "block/row_indices/row_indices.h" DESTINATION "${INSTALL_BASE}/block/row_indices")
 
 # Optionally build the test suite.
 if (BUILD_TEST)
