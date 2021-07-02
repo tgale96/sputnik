@@ -62,6 +62,9 @@ struct BlockMatrix {
   // Data for sparse * sparse products.
   void *bitmask;
 
+  // TODO(tgale): Get rid of this and plumb the APIs.
+  bool create_metadata = true;
+  
   BlockMatrix(int rows_,
               int cols_,
               BlockSize block_size_,

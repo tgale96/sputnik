@@ -30,10 +30,11 @@ __global__ void RowIndicesKernel(int m, int block_size,
 cudaError_t RowIndices(BlockMatrix a, short* row_indices, cudaStream_t stream) {
   // TODO(tgale): Tune this.
   constexpr int kBlockWidth = 32;
-  dim3 grid_dim(a.rows);
+  const int kBlockRows = a.rows / AsInt(a.block_size);
+  dim3 grid_dim(kBlockRows);
   dim3 block_dim(kBlockWidth);
 
-  RowIndicesKernel<<<grid_dim, block_dim, 0, stream>>>(a.rows,
+  RowIndicesKernel<<<grid_dim, block_dim, 0, stream>>>(kBlockRows,
 						       AsInt(a.block_size),
 						       (int*)a.offsets,
 						       row_indices);

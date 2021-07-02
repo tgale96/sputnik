@@ -32,5 +32,15 @@ cudaError_t Matmul(
   return cudaErrorNotSupported;
 }
 
+
+cudaError_t MatmulEx(
+    const BlockMatrix a, bool transpose_a,
+    const Matrix b, bool transpose_b,
+    Matrix c, cudaStream_t stream) {
+  BlockMatrix acp = a;
+  acp.create_metadata = false;
+  return Matmul(acp, transpose_a, b, transpose_b, c, stream);
+}
+  
 }  // namespace block
 }  // namespace sputnik

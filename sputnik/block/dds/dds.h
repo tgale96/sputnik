@@ -14,6 +14,13 @@ cudaError_t Matmul(const Matrix a,
                    Matrix c,
                    cudaStream_t stream);
 
+cudaError_t MatmulEx(const Matrix a,
+		     bool transpose_a,
+		     const BlockMatrix b,
+		     bool transpose_b,
+		     Matrix c,
+		     cudaStream_t stream); 
+
 }  // namespace block
 }  // namespace sputnik
 

@@ -76,13 +76,11 @@ cudaError_t launch_sds_mixed_b128_128x128x32x5_tt_align8(
   CHECK(a.block_offsets);
 
   // Produce the transpose meta-data.
-  //
-  // TODO(tgale): Add flag to BlockMatrix that indicates when
-  // the meta-data is already set correctly so that we can
-  // skip this stage for matrices that do not change.
-  cudaError_t custatus = Transpose(a, stream);
-  if (custatus != cudaSuccess) {
-    return custatus;
+  if (a.create_metadata) {
+    cudaError_t custatus = Transpose(a, stream);
+    if (custatus != cudaSuccess) {
+      return custatus;
+    }
   }
 
   using Sds = Kernel<sds_mixed_b128_128x128x32x5_tt_align8>;
