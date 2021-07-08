@@ -2,9 +2,9 @@
 #include <utility>
 #include <vector>
 
-#include "sputnik/block/sds/cutlass/sds.h"
+#include "sputnik/block/ssd/cutlass/ssd.h"
 #include "sputnik/block/cutlass/block_pitch_linear.h"
-#include "sputnik/block/sds/cutlass/sds.h"
+#include "sputnik/block/ssd/cutlass/ssd.h"
 
 #include "glog/logging.h"
 
@@ -42,14 +42,14 @@ bool RegisterKernel(CanImplementFn can_implement, LaunchFn launch) {
 }
 
 // TODO(tgale): Automate this with kernel generators.
-static const bool k1 = RegisterKernel(can_launch_sds_mixed_b128_128x128x32x5_nt_align8,
-                                      launch_sds_mixed_b128_128x128x32x5_nt_align8);
-static const bool k2 = RegisterKernel(can_launch_sds_mixed_b128_128x128x32x5_nn_align8,
-                                      launch_sds_mixed_b128_128x128x32x5_nn_align8);
-static const bool k3 = RegisterKernel(can_launch_sds_mixed_b128_128x128x32x5_tn_align8,
-                                      launch_sds_mixed_b128_128x128x32x5_tn_align8);
-static const bool k4 = RegisterKernel(can_launch_sds_mixed_b128_128x128x32x5_tt_align8,
-                                      launch_sds_mixed_b128_128x128x32x5_tt_align8);
+static const bool k1 = RegisterKernel(can_launch_ssd_mixed_b128_128x128x32x5_nt_align8,
+                                      launch_ssd_mixed_b128_128x128x32x5_nt_align8);
+static const bool k2 = RegisterKernel(can_launch_ssd_mixed_b128_128x128x32x5_nn_align8,
+                                      launch_ssd_mixed_b128_128x128x32x5_nn_align8);
+static const bool k3 = RegisterKernel(can_launch_ssd_mixed_b128_128x128x32x5_tn_align8,
+                                      launch_ssd_mixed_b128_128x128x32x5_tn_align8);
+static const bool k4 = RegisterKernel(can_launch_ssd_mixed_b128_128x128x32x5_tt_align8,
+                                      launch_ssd_mixed_b128_128x128x32x5_tt_align8);
 
 }  // namespace
 
@@ -65,7 +65,7 @@ cudaError_t Matmul(const BlockMatrix a, bool transpose_a,
   }
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
-  LOG(FATAL) << "No compatible kernel for sds problem.\n" << "m = " << shape.m <<
+  LOG(FATAL) << "No compatible kernel for ssd problem.\n" << "m = " << shape.m <<
       "\nn = " << shape.n << "\nk = " << shape.k << "\nblock_size = " <<
       AsInt(c.block_size) << "\ntrans_a = " << transpose_a << "\ntrans_b = " <<
       transpose_b << std::endl;

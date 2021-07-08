@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sputnik/cuda_utils.h"
-#include "sputnik/block/sds/sds.h"
+#include "sputnik/block/ssd/ssd.h"
 #include "sputnik/block/matrix_utils.h"
 #include "sputnik/timer.h"
 
@@ -43,7 +43,7 @@ void BenchmarkArgs(benchmark::internal::Benchmark* b) {
   }
 }
 
-void BM_Sds(benchmark::State& state) {
+void BM_Ssd(benchmark::State& state) {
   const int kDimM = state.range(0);
   const int kDimK = state.range(1);
   const int kDimN = state.range(2);
@@ -125,7 +125,7 @@ void BM_Sds(benchmark::State& state) {
       benchmark::Counter::OneK::kIs1000);
 }
 
-BENCHMARK(BM_Sds)->Apply(BenchmarkArgs)->UseManualTime()->MinTime(1e-2);
+BENCHMARK(BM_Ssd)->Apply(BenchmarkArgs)->UseManualTime()->MinTime(1e-2);
 
 }  // namespace block
 }  // namespace sputnik

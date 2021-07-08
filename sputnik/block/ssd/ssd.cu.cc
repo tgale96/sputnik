@@ -1,5 +1,5 @@
-#include "sputnik/block/sds/sds.h"
-#include "sputnik/block/sds/cutlass/sds.h"
+#include "sputnik/block/ssd/ssd.h"
+#include "sputnik/block/ssd/cutlass/ssd.h"
 
 namespace sputnik {
 namespace block {

@@ -15,7 +15,6 @@
 
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/dss/dss.h"
-#include "sputnik/block/sds/sds.h"
 #include "sputnik/block/bitmask/bitmask.h"
 #include "sputnik/block/matrix_utils.h"
 

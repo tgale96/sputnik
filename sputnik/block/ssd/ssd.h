@@ -1,5 +1,5 @@
-#ifndef THIRD_PARTY_SPUTNIK_BLOCK_SDS_SDS_H_
-#define THIRD_PARTY_SPUTNIK_BLOCK_SDS_SDS_H_
+#ifndef THIRD_PARTY_SPUTNIK_BLOCK_SSD_SSD_H_
+#define THIRD_PARTY_SPUTNIK_BLOCK_SSD_SSD_H_
 
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/arguments.h"
@@ -24,4 +24,4 @@ cudaError_t MatmulEx(const BlockMatrix a,
 }  // namespace block
 }  // namespace sputnik
 
-#endif  // THIRD_PARTY_SPUTNIK_BLOCK_SDS_SDS_H_
+#endif  // THIRD_PARTY_SPUTNIK_BLOCK_SSD_SSD_H_

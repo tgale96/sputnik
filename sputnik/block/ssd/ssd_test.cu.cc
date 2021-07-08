@@ -14,7 +14,7 @@
 #include <iostream>
 
 #include "sputnik/cuda_utils.h"
-#include "sputnik/block/sds/sds.h"
+#include "sputnik/block/ssd/ssd.h"
 #include "sputnik/block/matrix_utils.h"
 
 #include "absl/random/random.h"
@@ -53,7 +53,7 @@ struct Problem {
 };
 
 template <typename Problem>
-class SdsTest : public ::testing::Test {
+class SsdTest : public ::testing::Test {
  public:
   const int kDimM = Problem::kDimM;
   const int kDimK = Problem::kDimK;
@@ -135,9 +135,9 @@ typedef ::testing::Types<
     Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, true>,
   > TestProblems;
 
-TYPED_TEST_SUITE(SdsTest, TestProblems);
+TYPED_TEST_SUITE(SsdTest, TestProblems);
 
-TYPED_TEST(SdsTest, Sds) {
+TYPED_TEST(SsdTest, Ssd) {
   // Create the lhs matrix on cpu & gpu.
   int oda = this->kTransposeA ? this->kDimK : this->kDimM;
   int lda = this->kTransposeA ? this->kDimM : this->kDimK;
