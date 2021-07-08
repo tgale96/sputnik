@@ -80,16 +80,18 @@ cudaError_t launch_dss_mixed_b128_128x128x32x5_tt_align8(
   CHECK(b.bitmask);
 
   // Produce the transpose meta-data.
-  cudaError_t custatus = Transpose(a, stream);
-  if (custatus != cudaSuccess) {
-    return custatus;
+  if (a.create_metadata) {
+    cudaError_t custatus = Transpose(a, stream);
+    if (custatus != cudaSuccess) {
+      return custatus;
+    }
   }
 
   // Produce the bitmasks for both matrices.
   //
   // TODO(tgale): Add the ability to cache this data
   // for cases where it can be reused across calls.
-  custatus = Bitmask(a, stream);
+  cudaError_t custatus = Bitmask(a, stream);
   if (custatus != cudaSuccess) {
     return custatus;
   }
