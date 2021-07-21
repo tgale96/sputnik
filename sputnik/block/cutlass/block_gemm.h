@@ -434,6 +434,11 @@ struct OutputConfig {
   }
 
   CUTLASS_DEVICE
+  GemmCoord UpdateTileOffset(const GemmCoord &offset) const {
+    return offset;
+  }
+
+  CUTLASS_DEVICE
   RetOffsetC OffsetC(const GemmCoord &offset) const {
     RetOffsetC threadblock_offset(
          offset.m() * Gemm::Mma::Shape::kM,
@@ -445,12 +450,6 @@ struct OutputConfig {
   CUTLASS_DEVICE
   RetExtentC ExtentC() const {
     return params.problem_size.mn();
-  }
-
-  template <typename T>
-  CUTLASS_DEVICE
-  T UpdateOffsetB(const T &offset) {
-    return offset;
   }
 };
 
@@ -503,6 +502,15 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   }
 
   CUTLASS_DEVICE
+  GemmCoord UpdateTileOffset(const GemmCoord &offset) const {
+    // Load the column index for the output block.
+    Meta *index_ptr_c = (Meta*)params.op_C.indices;
+    int block_offset_c = offset_c / kValuesPerBlock;
+    int index = (int)__ldg(index_ptr_c + block_offset_c);
+    return {offset.m(), index / kBlockSize, offset.k()};
+  }
+
+  CUTLASS_DEVICE
   RetOffsetC OffsetC(const GemmCoord &offset) const {
     return offset_c;
   }
@@ -510,16 +518,6 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   CUTLASS_DEVICE
   RetExtentC ExtentC() const {
     return {params.problem_size.m(), nnz_columns_c};
-  }
-
-  CUTLASS_DEVICE
-  ::cutlass::MatrixCoord UpdateOffsetB(const ::cutlass::MatrixCoord &offset) {
-    // Load the column index for the output block and pass
-    // it to the rhs tile loader.
-    Meta *index_ptr_c = (Meta*)params.op_C.indices;
-    int block_offset_c = offset_c / kValuesPerBlock;
-    int index = (int)__ldg(index_ptr_c + block_offset_c);
-    return {offset.row(), index};
   }
 };
 
@@ -773,7 +771,11 @@ public:
     OutputConfig bounds_checker(params, threadblock_tile_offset);
     if (bounds_checker.EarlyExit(threadblock_tile_offset)) return;
 
-    Config config(params, threadblock_tile_offset, config_shared);
+    // Update the tile offset if necessary.
+    ::cutlass::gemm::GemmCoord tile_offset =
+	bounds_checker.UpdateTileOffset(threadblock_tile_offset);
+
+    Config config(params, tile_offset, config_shared);
 
     ElementA *ptr_A = static_cast<ElementA *>(params.op_A.data);
     ElementB *ptr_B = static_cast<ElementB *>(params.op_B.data);
@@ -783,8 +785,7 @@ public:
 
     // Compute initial location in logical coordinates
     auto tb_offset_A = config.OffsetA();
-    auto tb_offset_B = bounds_checker.UpdateOffsetB(
-        config.OffsetB());
+    auto tb_offset_B = config.OffsetB();
 
     // Compute position within threadblock
     int thread_idx = threadIdx.x;
