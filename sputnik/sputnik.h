@@ -21,7 +21,7 @@
 #include "sputnik/block/dds/dds.h"
 #include "sputnik/block/sdd/sdd.h"
 #include "sputnik/block/ssd/ssd.h"
-#include "sputnik/block/ssd/sds.h"
+#include "sputnik/block/sds/sds.h"
 #include "sputnik/block/dss/dss.h"
 #include "sputnik/block/row_indices/row_indices.h"
 #include "sputnik/depthwise/cuda_depthwise.h"
