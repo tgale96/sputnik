@@ -1,10 +1,10 @@
 include(cmake/Cuda.cmake)
 
 # TODO(tgale): Move cuSPARSE, cuBLAS deps to test & benchmark only.
-cuda_find_library(CUDART_LIBRARY cudart_static)
-cuda_find_library(CUBLAS_LIBRARY cublas_static)
-cuda_find_library(CUSPARSE_LIBRARY cusparse_static)
-list(APPEND SPUTNIK_LIBS "cudart_static;cublas_static;cusparse_static;culibos;cublasLt_static")
+cuda_find_library(CUDART_LIBRARY cudart)
+cuda_find_library(CUBLAS_LIBRARY cublas)
+cuda_find_library(CUSPARSE_LIBRARY cusparse)
+list(APPEND SPUTNIK_LIBS "cudart;cublas;cusparse;culibos;cublasLt")
 
 # Google Glog.
 find_package(Glog REQUIRED)
