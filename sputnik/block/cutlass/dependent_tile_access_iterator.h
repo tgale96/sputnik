@@ -102,8 +102,11 @@ class DependentTileAccessIterator {
       params_(params),
       iteration_block_(0),
       current_offset_(-Shape::kBlock) {
-    // Offset to the first block.
-    add_block_offset();
+    if (params_.steps_k > 0) {
+      // Offset to the first block.
+      add_block_offset();
+      --params_.steps_k;
+    }
   }
 
   CUTLASS_HOST_DEVICE
@@ -118,10 +121,6 @@ class DependentTileAccessIterator {
 
   CUTLASS_DEVICE
   void add_block_offset() {
-    // Don't load an index if we're out of work to do.
-    if (params_.steps_k == 0) return;
-    --params_.steps_k;
-
     int absolute_offset = (int)__ldg(params_.indices);
     int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
 
@@ -135,6 +134,9 @@ class DependentTileAccessIterator {
 
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
+    if (params_.steps_k <= 0) return;
+    --params_.steps_k;
+
     // TODO(tgale): This only supports advancing by a single
     // tile. Generalize this.
     iterator_.add_tile_offset(tile_offset_);

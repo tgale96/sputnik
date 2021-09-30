@@ -188,8 +188,11 @@ class BlockTileAccessIterator {
     set_iteration_index(0);
 
     if (kAdvanceRank) {
-      // Offset to the first block.
-      add_block_offset();
+      if (params_.steps_k > 0) {
+	// Offset to the first block.
+	add_block_offset();
+	--params_.steps_k;
+      }
     } else {
       add_pointer_offset(block_row_offset);
     }
@@ -217,10 +220,6 @@ class BlockTileAccessIterator {
   CUTLASS_DEVICE
   void add_block_offset() {
     if (kAdvanceRank) {
-      // Don't load an index if we're out of work to do.
-      if (params_.steps_k == 0) return;
-      --params_.steps_k;
-
       // TODO(tgale): We might need to change this offset calculation
       // based on what we calculate for the block offsets. i.e., I
       // believe they'll come in as byte offsets.
@@ -241,6 +240,11 @@ class BlockTileAccessIterator {
   // Advances an iterator along logical dimensions of matrix in units of whole tiles
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
+    if (kAdvanceRank) {
+      if (params_.steps_k <= 0) return;
+      --params_.steps_k;
+    }
+
     // TODO(tgale): This function only supports increments by one
     // tile in the 'advance' direction.
     pointer_ += kIncAdvance;
