@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo docker run -it --runtime=nvidia -v /lfs/1/tgale:/mount sputnik-dev
+sudo docker run -it --runtime=nvidia -v /scr-ssd/tgale:/mount sputnik-dev
