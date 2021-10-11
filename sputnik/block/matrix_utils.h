@@ -21,7 +21,8 @@ class BlockSparseMatrix : public SparseMatrix {
   // useful to match cuSPARSE.
   BlockSparseMatrix(int rows, int columns, int nonzeros, int block_dim,
                     ElementDistribution weight_distribution,
-                    absl::BitGen* generator, int pad_rows_to=4);
+                    absl::BitGen* generator, int pad_rows_to=4,
+		    bool unordered_indices=false);
 
   template <typename T>
   explicit BlockSparseMatrix(const CudaBlockSparseMatrix<T>& sparse_matrix);
@@ -52,7 +53,8 @@ class CudaBlockSparseMatrix : public CudaSparseMatrix<Value> {
  public:
   CudaBlockSparseMatrix(int rows, int columns, int nonzeros, int block_dim,
                         ElementDistribution weight_distribution,
-                        absl::BitGen* generator, int pad_rows_to=4);
+                        absl::BitGen* generator, int pad_rows_to=4,
+			bool unordered_indices=false);
 
   explicit CudaBlockSparseMatrix(const BlockSparseMatrix& sparse_matrix);
 

@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "sputnik/block/matrix_utils.h"
 
 namespace sputnik {
@@ -5,7 +7,8 @@ namespace sputnik {
 BlockSparseMatrix::BlockSparseMatrix(
     int rows, int columns, int nonzeros, int block_dim,
     ElementDistribution weight_distribution,
-    absl::BitGen* generator, int pad_rows_to) {
+    absl::BitGen* generator, int pad_rows_to,
+    bool unordered_indices) {
   CHECK_EQ(rows % block_dim, 0);
   CHECK_EQ(columns % block_dim, 0);
   CHECK_EQ(nonzeros % (block_dim * block_dim), 0);
@@ -88,6 +91,16 @@ BlockSparseMatrix::BlockSparseMatrix(
   for (int i = 0; i < block_rows + 1; ++i) {
     row_offsets_[i] *= block_dim * block_dim;
   }
+
+  if (unordered_indices) {
+    // If we want unordered indices, randomly shuffle each
+    // block row of indices.
+    for (int i = 0; i < block_rows; ++i) {
+      int start = row_offsets_[i] / (block_dim * block_dim);
+      int end = row_offsets_[i + 1] / (block_dim * block_dim);
+      std::shuffle(column_indices_ + start, column_indices_ + end, *generator);
+    }
+  }
 }
 
 template <typename T>
@@ -162,10 +175,12 @@ template <typename Value>
 CudaBlockSparseMatrix<Value>::CudaBlockSparseMatrix(
     int rows, int columns, int nonzeros, int block_dim,
     ElementDistribution weight_distribution,
-    absl::BitGen* generator, int pad_rows_to) {
+    absl::BitGen* generator, int pad_rows_to,
+    bool unordered_indices) {
   BlockSparseMatrix sparse_matrix(
       rows, columns, nonzeros, block_dim,
-      weight_distribution, generator, pad_rows_to);
+      weight_distribution, generator, pad_rows_to,
+      unordered_indices);
   InitFromBlockSparseMatrix(sparse_matrix);
 }
 

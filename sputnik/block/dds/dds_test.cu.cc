@@ -33,7 +33,8 @@ template <
     int kNonZeros_,
     int kBlockDim_,
     bool kTransposeA_ = false,
-    bool kTransposeB_ = false>
+    bool kTransposeB_ = false,
+    bool kUnorderedIndices_ = false>
 struct Problem {
   static_assert(kNonZeros_ <= kDimK_ * kDimN_,
                 "Number of non-zero must fit in the matrix.");
@@ -45,6 +46,7 @@ struct Problem {
   static constexpr int kBlockDim = kBlockDim_;
   static constexpr int kTransposeA = kTransposeA_;
   static constexpr int kTransposeB = kTransposeB_;
+  static constexpr bool kUnorderedIndices = kUnorderedIndices_;
 };
 
 template <typename Problem>
@@ -57,6 +59,7 @@ class DdsTest : public ::testing::Test {
   const int kBlockDim = Problem::kBlockDim;
   const int kTransposeA = Problem::kTransposeA;
   const int kTransposeB = Problem::kTransposeB;
+  const bool kUnorderedIndices = Problem::kUnorderedIndices;
 
   // Random number generator for creating matrices.
   absl::BitGen generator_;
@@ -118,7 +121,35 @@ typedef ::testing::Types<
     Problem<1024, 512, 512, 128*512, 128, true, true>,
     Problem<1024, 1024, 1024, 1024*1024, 128, true, true>,
     Problem<1024, 1024, 1024, 512*1024, 128, true, true>,
-    Problem<1024, 1024, 1024, 256*1024, 128, true, true>
+    Problem<1024, 1024, 1024, 256*1024, 128, true, true>,
+    // Unordered problems NN.
+    Problem<1024, 512, 512, 512*512, 128, false, false, true>,
+    Problem<1024, 512, 512, 256*512, 128, false, false, true>,
+    Problem<1024, 512, 512, 128*512, 128, false, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, false, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, false, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, false, false, true>,
+    // Unordered problems TN.
+    Problem<1024, 512, 512, 512*512, 128, true, false, true>,
+    Problem<1024, 512, 512, 256*512, 128, true, false, true>,
+    Problem<1024, 512, 512, 128*512, 128, true, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true, false, true>,
+    // Unordered problems NT.
+    Problem<1024, 512, 512, 512*512, 128, false, true, true>,
+    Problem<1024, 512, 512, 256*512, 128, false, true, true>,
+    Problem<1024, 512, 512, 128*512, 128, false, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, false, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, false, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, false, true, true>,
+    // Unordered problems TT.
+    Problem<1024, 512, 512, 512*512, 128, true, true, true>,
+    Problem<1024, 512, 512, 256*512, 128, true, true, true>,
+    Problem<1024, 512, 512, 128*512, 128, true, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 128, true, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 128, true, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 128, true, true, true>,
   > TestProblems;
 
 TYPED_TEST_SUITE(DdsTest, TestProblems);
@@ -130,14 +161,14 @@ TYPED_TEST(DdsTest, Dds) {
   sputnik::Matrix lhs(oda, lda, &this->generator_);
   CudaMatrix<half> lhs_gpu(lhs);
 
-
   // Create the sparse matrix on cpu & gpu.
   int odb = this->kTransposeB ? this->kDimN : this->kDimK;
   int ldb = this->kTransposeB ? this->kDimK : this->kDimN;
   BlockSparseMatrix rhs_(
       odb, ldb, this->kNonZeros, this->kBlockDim,
       RANDOM_UNIFORM, &this->generator_,
-      /*pad_rows_to=*/1);
+      /*pad_rows_to=*/1,
+      /*unordered_indices=*/this->kUnorderedIndices);
   sputnik::Matrix rhs = ToMatrix(rhs_);
   CudaBlockSparseMatrix<half> rhs_gpu(rhs_);
 
