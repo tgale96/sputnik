@@ -332,13 +332,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const GemmCoord &offset,
-               uint8_t *smem) :
-      params(params_),
-      merger(params_.op_A,
-             params_.op_B,
-             params_.problem_size.k(),
-             offset,
-             smem) {
+               uint8_t *smem) : params(params_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_a = (int*)params_.op_A.offsets;
     int block_row_idx = offset.m();
@@ -353,6 +347,14 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
     // In scalar elements.
     offset_b = __ldg(offset_ptr_b + block_column_idx);
     nnz_b = __ldg(offset_ptr_b + block_column_idx + 1) - offset_b;
+
+    // Initialize the index merger.
+    merger = IndexMerge(params_.op_A,
+			params_.op_B,
+			params_.problem_size.k(),
+			offset_a, nnz_a,
+			offset_b, nnz_b,
+			offset, smem);
   }
 
   CUTLASS_HOST_DEVICE

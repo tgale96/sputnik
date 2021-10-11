@@ -2,6 +2,7 @@
 #define SPUTNIK_BLOCK_CUTLASS_INDEX_MERGE_H_
 
 #include "sputnik/block/cutlass/op.h"
+#include "sputnik/block/cutlass/type_utils.h"
 #include "cutlass/gemm/gemm.h"
 
 namespace sputnik {
@@ -112,6 +113,9 @@ struct IndexMerge {
   // NOTE: This needs to be to let us use 8-bit offsets.
   static_assert(kOffsets <= 256);
 
+  // Sparse matrix metadata type.
+  using Meta = typename Type<typename Gemm::ElementA>::Meta;
+
   using Mask = BitVector<kOffsets>;
 
   // The total number of shared memory bytes.
@@ -132,6 +136,8 @@ struct IndexMerge {
   CUTLASS_DEVICE
   IndexMerge(Op op_a, Op op_b,
              int problem_size_k,
+	     int offset_a, int nnz_a,
+	     int offset_b, int nnz_b,
              const GemmCoord &offset,
              Offset *smem) : data(smem) {
     // NOTE: Bitmasks are always stored contraction dimension contiguous.
@@ -162,28 +168,49 @@ struct IndexMerge {
     }
     steps_k = op_union.Sum() * (kBlockSize / Gemm::Mma::Shape::kK);
 
-    // Set the block offsets for each operand.
-    Mask prefix;
-    CUTLASS_PRAGMA_UNROLL
-    for (int i = 0; i < kOffsetsPerThread; ++i) {
-      int bit_idx = threadIdx.x + kThreads * i;
+    // NOTE: To allow for unordered indices, each thread
+    // loads a column index and tests whether it's in the
+    // union. If it is, we can write it's offset into
+    // shared memory for fast access later.
+    constexpr int kBlockElements = kBlockSize * kBlockSize;
+    offset_a /= kBlockElements;
+    nnz_a /= kBlockElements;
+    Meta* idxs_a = ((Meta*)op_a.indices) + offset_a;
+    for (int i = threadIdx.x; i < nnz_a; i += kThreads) {
+      // Load the column index for this thread.
+      int bit_idx = (int)__ldg(idxs_a + i) / kBlockSize;
 
-      // Mask the prefix and sum to get the offset.
-      prefix.SetLessThan(bit_idx);
-
-      Offset offset_a = (Offset)mask_a.SumWithMask(prefix);
-      Offset offset_b = (Offset)mask_b.SumWithMask(prefix);
-
-      // Prefix sum up to this thread's bit to get
-      // offset into shared memory.
-      int write_offset = op_union.SumWithMask(prefix);
-
-      // Whether or not this thread has a valid value to
-      // write to shared memory.
+      // Figure out if this block is in the union.
       bool should_write = op_union.Get(bit_idx);
       if (should_write) {
-        data[write_offset] = offset_a;
-        data[write_offset + kOffsets] = offset_b;
+	// Calculate the write offset.
+	//
+	//
+	// TODO(tgale): This can be done much more efficiently.
+	Mask prefix;
+	prefix.SetLessThan(bit_idx);
+	int write_offset = op_union.SumWithMask(prefix);
+        data[write_offset] = (Offset)i;
+      }
+    }
+    offset_b /= kBlockElements;
+    nnz_b /= kBlockElements;
+    Meta* idxs_b = ((Meta*)op_b.indices) + offset_b;
+    for (int i = threadIdx.x; i < nnz_b; i += kThreads) {
+      // Load the column index for this thread.
+      int bit_idx = (int)__ldg(idxs_b + i) / kBlockSize;
+
+      // Figure out if this block is in the union.
+      bool should_write = op_union.Get(bit_idx);
+      if (should_write) {
+	// Calculate the write offset.
+	//
+	//
+	// TODO(tgale): This can be done much more efficiently.
+	Mask prefix;
+	prefix.SetLessThan(bit_idx);
+	int write_offset = op_union.SumWithMask(prefix);
+        data[write_offset + kOffsets] = (Offset)i;
       }
     }
   }
