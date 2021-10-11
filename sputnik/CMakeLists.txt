@@ -90,7 +90,7 @@ add_library(sputnik SHARED ${SPUTNIK_SRCS})
 target_link_libraries(sputnik ${SPUTNIK_LIBS})
 
 # Library installation.
-install(TARGETS sputnik)
+install(TARGETS sputnik LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 set(INSTALL_BASE "include/sputnik")
 install(FILES "cuda_utils.h" DESTINATION ${INSTALL_BASE})

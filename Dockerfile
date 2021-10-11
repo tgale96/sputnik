@@ -12,12 +12,11 @@ RUN apt-get install -y \
 
 ENV PATH="/opt/nvidia/nsight-compute/2020.3.1/:${PATH}"
 
-# Setup to install the latest version of cmake.
-RUN apt-get install -y software-properties-common && \
-    apt-get update && \
-    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' && \
-    apt-get update && apt-get install -y cmake
+# Install the latest version of cmake.
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-linux-x86_64.sh
+RUN mkdir /usr/local/cmake
+RUN sh cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/usr/local/cmake
+ENV PATH="/usr/local/cmake/bin:${PATH}"
 
 # Set the working directory.
 WORKDIR /mount/sputnik
