@@ -80,10 +80,7 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
       add_pointer_offset(block_row_offset);
       iterator.current_offset_ = -1;
     }
-    if (iterator.params_.steps_k > 0) {
-      add_block_offset();
-      --iterator.params_.steps_k;
-    }
+    add_block_offset();
   }
 
   CUTLASS_DEVICE
@@ -98,6 +95,9 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
   CUTLASS_DEVICE
   void add_block_offset() {
+    if (iterator.params_.steps_k <= 0) return;
+    iterator.params_.steps_k -= Base::kIterationsBlock;
+
     // Load the next offset from shared memory.
     int offset_to_block = (int)*offsets;
     ++offsets;
@@ -124,10 +124,6 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
   CUTLASS_DEVICE
   void add_tile_offset(TensorCoord const &tile_offset_) {
-    // Do nothing if we're out of work to do.
-    if (iterator.params_.steps_k <= 0) return;
-    --iterator.params_.steps_k;
-
     // TODO(tgale): This function only supports increments by one
     // tile in the 'advance' direction.
     iterator.pointer_ += Base::kIncAdvance;
