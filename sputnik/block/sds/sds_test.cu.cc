@@ -35,7 +35,8 @@ template <
     int kNonZerosC_,
     int kBlockDim_,
     bool kTransposeA_ = false,
-    bool kTransposeB_ = false>
+    bool kTransposeB_ = false,
+    bool kUnorderedIndices_ = false>
 struct Problem {
   static_assert(kNonZerosB_ <= kDimK_ * kDimN_,
                 "Number of non-zero must fit in the input matrix.");
@@ -50,6 +51,7 @@ struct Problem {
   static constexpr int kBlockDim = kBlockDim_;
   static constexpr int kTransposeA = kTransposeA_;
   static constexpr int kTransposeB = kTransposeB_;
+  static constexpr bool kUnorderedIndices = kUnorderedIndices_;
 };
 
 template <typename Problem>
@@ -63,6 +65,7 @@ class SdsTest : public ::testing::Test {
   const int kBlockDim = Problem::kBlockDim;
   const int kTransposeA = Problem::kTransposeA;
   const int kTransposeB = Problem::kTransposeB;
+  const bool kUnorderedIndices = Problem::kUnorderedIndices;
 
   // Random number generator for creating matrices.
   absl::BitGen generator_;
@@ -104,7 +107,7 @@ typedef ::testing::Types<
     Problem<128, 256, 128, 128*128, 128*128, 128, true, true>,
     Problem<128, 128, 256, 256*128, 128*128, 128, true, true>,
     Problem<256, 256, 128, 128*128, 128*128, 128, true, true>,
-    Problem<256, 256, 256, 128*256, 128*256, 128, true, true>,  
+    Problem<256, 256, 256, 128*256, 128*256, 128, true, true>,
     // Larger problems NN.
     Problem<512, 512, 1024, 512*1024, 512*1024, 128>,
     Problem<512, 512, 1024, 256*1024, 256*1024, 128>,
@@ -132,7 +135,35 @@ typedef ::testing::Types<
     Problem<512, 512, 1024, 128*1024, 128*1024, 128, true, true>,
     Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, true, true>,
     Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, true, true>,
-    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, true>,      
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, true>,
+    // Unordered problems NN.
+    Problem<512, 512, 1024, 512*1024, 512*1024, 128, false, false, true>,
+    Problem<512, 512, 1024, 256*1024, 256*1024, 128, false, false, true>,
+    Problem<512, 512, 1024, 128*1024, 128*1024, 128, false, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, false, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, false, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, false, false, true>,
+    // Unordered problems TN.
+    Problem<512, 512, 1024, 512*1024, 512*1024, 128, true, false, true>,
+    Problem<512, 512, 1024, 256*1024, 256*1024, 128, true, false, true>,
+    Problem<512, 512, 1024, 128*1024, 128*1024, 128, true, false, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, true, false, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, true, false, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, false, true>,
+    // Unordered problems NT.
+    Problem<512, 512, 1024, 512*1024, 512*1024, 128, false, true, true>,
+    Problem<512, 512, 1024, 256*1024, 256*1024, 128, false, true, true>,
+    Problem<512, 512, 1024, 128*1024, 128*1024, 128, false, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, false, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, false, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, false, true, true>,
+    // Unordered problems TT.
+    Problem<512, 512, 1024, 512*1024, 512*1024, 128, true, true, true>,
+    Problem<512, 512, 1024, 256*1024, 256*1024, 128, true, true, true>,
+    Problem<512, 512, 1024, 128*1024, 128*1024, 128, true, true, true>,
+    Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, true, true, true>,
+    Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, true, true, true>,
+    Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, true, true>,
   > TestProblems;
 
 TYPED_TEST_SUITE(SdsTest, TestProblems);
@@ -150,16 +181,18 @@ TYPED_TEST(SdsTest, Sds) {
   BlockSparseMatrix rhs_(
       odb, ldb, this->kNonZerosB, this->kBlockDim,
       RANDOM_UNIFORM, &this->generator_,
-      /*pad_rows_to=*/1);
+      /*pad_rows_to=*/1,
+      /*unordered_indices=*/this->kUnorderedIndices);
   sputnik::Matrix rhs = ToMatrix(rhs_);
-  CudaBlockSparseMatrix<half> rhs_gpu(rhs_);  
+  CudaBlockSparseMatrix<half> rhs_gpu(rhs_);
 
   // Create the output matrix on gpu & gpu.
   BlockSparseMatrix out_(
       this->kDimM, this->kDimN,
       this->kNonZerosC, this->kBlockDim,
       RANDOM_UNIFORM, &this->generator_,
-      /*pad_rows_to=*/1);
+      /*pad_rows_to=*/1,
+      /*unordered_indices=*/this->kUnorderedIndices);
   out_.Fill(1);
   sputnik::Matrix out = ToMatrix(out_);
   CudaBlockSparseMatrix<half> out_gpu(out_);
