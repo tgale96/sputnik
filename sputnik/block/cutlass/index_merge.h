@@ -172,13 +172,10 @@ struct IndexMerge {
     // loads a column index and tests whether it's in the
     // union. If it is, we can write it's offset into
     // shared memory for fast access later.
-    constexpr int kBlockElements = kBlockSize * kBlockSize;
-    offset_a /= kBlockElements;
-    nnz_a /= kBlockElements;
     Meta* idxs_a = ((Meta*)op_a.indices) + offset_a;
     for (int i = threadIdx.x; i < nnz_a; i += kThreads) {
       // Load the column index for this thread.
-      int bit_idx = (int)__ldg(idxs_a + i) / kBlockSize;
+      int bit_idx = (int)__ldg(idxs_a + i);
 
       // Figure out if this block is in the union.
       bool should_write = op_union.Get(bit_idx);
@@ -193,12 +190,10 @@ struct IndexMerge {
         data[write_offset] = (Offset)i;
       }
     }
-    offset_b /= kBlockElements;
-    nnz_b /= kBlockElements;
     Meta* idxs_b = ((Meta*)op_b.indices) + offset_b;
     for (int i = threadIdx.x; i < nnz_b; i += kThreads) {
       // Load the column index for this thread.
-      int bit_idx = (int)__ldg(idxs_b + i) / kBlockSize;
+      int bit_idx = (int)__ldg(idxs_b + i);
 
       // Figure out if this block is in the union.
       bool should_write = op_union.Get(bit_idx);

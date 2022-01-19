@@ -132,7 +132,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
     offset_a = __ldg(offset_ptr_a + block_row_idx);
 
-    // In scalar elements. Divide by the block size to get
+    // In blocks. Multiply by the block size to get
     // the number of columns to process.
     nnz_a = __ldg(offset_ptr_a + block_row_idx + 1) - offset_a;
   }
@@ -155,7 +155,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
     // the non-transposed kernels where we do not use
     // explicit block offsets.
     ParamsA out = params;
-    out.block_offsets += offset_a / kBlockSize;
+    out.block_offsets += offset_a;
 
     // Set the number of steps for predicated index loads.
     out.steps_k = StepsK();
@@ -165,7 +165,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   CUTLASS_DEVICE
   ParamsB UpdateParamsB(ParamsB const &params) const {
     ParamsB out = params;
-    out.indices += offset_a / kBlockSize;
+    out.indices += offset_a;
 
     // Set the number of steps for predicated index loads.
     out.steps_k = StepsK();
@@ -174,7 +174,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
-    return offset_a;
+    return offset_a * kBlockSize;
   }
 
   CUTLASS_DEVICE
@@ -187,7 +187,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
 
   CUTLASS_DEVICE
   int StepsK() const {
-    int nnz_cols_a = nnz_a / Gemm::Mma::IteratorA::Shape::kBlock;
+    int nnz_cols_a = nnz_a * Gemm::Mma::IteratorA::Shape::kBlock;
     return (nnz_cols_a + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
   }
 };
@@ -232,7 +232,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
 
     offset_b = __ldg(offset_ptr_b + block_cow_idx);
 
-    // In scalar elements. Divide by the block size to get
+    // In blocks. Multiply by the block size to get
     // the number of columns to process.
     nnz_b = __ldg(offset_ptr_b + block_cow_idx + 1) - offset_b;
   }
@@ -252,7 +252,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
   CUTLASS_DEVICE
   ParamsA UpdateParamsA(ParamsA const &params) const {
     ParamsA out = params;
-    out.indices += offset_b / kBlockSize;
+    out.indices += offset_b;
 
     // Set the number of steps for predicated index loads.
     out.steps_k = StepsK();
@@ -265,7 +265,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
     // the non-transposed kernels where we do not use
     // explicit block offsets.
     ParamsB out = params;
-    out.block_offsets += offset_b / kBlockSize;
+    out.block_offsets += offset_b;
 
     // Set the number of steps for predicated index loads.
     out.steps_k = StepsK();
@@ -282,7 +282,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
 
   CUTLASS_DEVICE
   RetOffsetB OffsetB() const {
-    return offset_b;
+    return offset_b * kBlockSize;
   }
 
   CUTLASS_DEVICE
@@ -290,7 +290,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
     // TODO(tgale): We now call this function in multiple places.
     // If the compiler doesn't already, we could calculate this value
     // in the constructor.
-    int nnz_rows_b = nnz_b / Gemm::Mma::IteratorB::Shape::kBlock;
+    int nnz_rows_b = nnz_b * Gemm::Mma::IteratorB::Shape::kBlock;
     return (nnz_rows_b + Gemm::Mma::Shape::kK - 1) / Gemm::Mma::Shape::kK;
   }
 };
@@ -337,14 +337,14 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
     int *offset_ptr_a = (int*)params_.op_A.offsets;
     int block_row_idx = offset.m();
 
-    // In scalar elements.
+    // In blocks.
     offset_a = __ldg(offset_ptr_a + block_row_idx);
     nnz_a = __ldg(offset_ptr_a + block_row_idx + 1) - offset_a;
 
     int *offset_ptr_b = (int*)params_.op_B.offsets;
     int block_column_idx = offset.n();
 
-    // In scalar elements.
+    // In blocks.
     offset_b = __ldg(offset_ptr_b + block_column_idx);
     nnz_b = __ldg(offset_ptr_b + block_column_idx + 1) - offset_b;
 
@@ -373,8 +373,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
     // the non-transposed kernels where we do not use
     // explicit block offsets.
     ParamsA out = params;
-    out.base_params.block_offsets +=
-        offset_a / kBlockElements;
+    out.base_params.block_offsets += offset_a;
 
     out.offsets = merger.OffsetPtrA();
 
@@ -389,8 +388,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
     // the non-transposed kernels where we do not use
     // explicit block offsets.
     ParamsB out = params;
-    out.base_params.block_offsets +=
-        offset_b / kBlockElements;
+    out.base_params.block_offsets += offset_b;
 
     out.offsets = merger.OffsetPtrB();
 
@@ -401,12 +399,12 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
 
   CUTLASS_DEVICE
   RetOffsetA OffsetA() const {
-    return offset_a;
+    return offset_a * kBlockElements;
   }
 
   CUTLASS_DEVICE
   RetOffsetB OffsetB() const {
-    return offset_b;
+    return offset_b * kBlockElements;
   }
 
   CUTLASS_DEVICE
@@ -487,12 +485,11 @@ struct OutputConfig<Gemm, BlockRowMajor> {
 
     offset_c = __ldg(offset_ptr_c + block_row_idx);
 
-    // Divide by blocksize to get columns.
-    nnz_columns_c = (__ldg(offset_ptr_c + block_row_idx + 1) - offset_c) /
-                    kBlockSize;
+    // Multiply by blocksize to get columns.
+    nnz_columns_c = (__ldg(offset_ptr_c + block_row_idx + 1) - offset_c) * kBlockSize;
 
     // Update the offset based on this threadblock's column index.
-    offset_c += offset.n() * kValuesPerBlock;
+    offset_c += offset.n();
   }
 
   CUTLASS_DEVICE
@@ -507,14 +504,13 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   GemmCoord UpdateTileOffset(const GemmCoord &offset) const {
     // Load the column index for the output block.
     Meta *index_ptr_c = (Meta*)params.op_C.indices;
-    int block_offset_c = offset_c / kValuesPerBlock;
-    int index = (int)__ldg(index_ptr_c + block_offset_c);
-    return {offset.m(), index / kBlockSize, offset.k()};
+    int index = (int)__ldg(index_ptr_c + offset_c);
+    return {offset.m(), index, offset.k()};
   }
 
   CUTLASS_DEVICE
   RetOffsetC OffsetC(const GemmCoord &offset) const {
-    return offset_c;
+    return offset_c * kValuesPerBlock;
   }
 
   CUTLASS_DEVICE
@@ -762,7 +758,6 @@ public:
   CUTLASS_DEVICE
   void operator()(Params const &params, SharedStorage &shared_storage) {
     __shared__ uint8_t config_shared[Config::kSmemBytes];
-
     // Compute threadblock location
     ThreadblockSwizzle threadblock_swizzle;
 

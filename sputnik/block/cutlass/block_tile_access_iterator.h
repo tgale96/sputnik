@@ -220,10 +220,7 @@ class BlockTileAccessIterator {
       if (params_.steps_k <= 0) return;
       params_.steps_k -= kIterationsBlock;
 
-      // TODO(tgale): We might need to change this offset calculation
-      // based on what we calculate for the block offsets. i.e., I
-      // believe they'll come in as byte offsets.
-      int absolute_offset = __ldg(params_.block_offsets);
+      int absolute_offset = __ldg(params_.block_offsets) * kBytesPerBlock;
       int relative_offset = absolute_offset - current_offset_ - kBytesPerBlock;
 
       pointer_ += relative_offset;

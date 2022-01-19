@@ -20,13 +20,7 @@ cudaError_t Matmul(
   // We can achieve both of these goals by registering all
   // kernels available, filtering based on problem properties
   // and then auto-tuning and caching the results.
-  MatmulShape shape(a, transpose_a, b, transpose_b);
-  if (a.block_size == BlockSize::k32) {
-    CHECK_EQ(transpose_a, false) << "Not yet supported for block_size == 32.";
-    return sm80::Dsd(shape.m, shape.k, shape.n, a.nonzeros, AsInt(a.block_size),
-		     (half*)a.data, (int*)a.offsets, (short*)a.indices,
-                     (half*)b.data, transpose_b, (half*)c.data, stream);
-  } else if (a.block_size == BlockSize::k128) {
+  if (a.block_size == BlockSize::k128) {
     return cutlass::Matmul(a, transpose_a, b, transpose_b, c, stream);
   }
   return cudaErrorNotSupported;

@@ -121,7 +121,7 @@ class DependentTileAccessIterator {
     if (params_.steps_k <= 0) return;
     params_.steps_k -= kIterationsBlock;
 
-    int absolute_offset = (int)__ldg(params_.indices);
+    int absolute_offset = (int)__ldg(params_.indices) * Shape::kBlock;
     int relative_offset = absolute_offset - current_offset_ - Shape::kBlock;
 
     if (kAdvanceRank) relative_offset *= params_.stride;

@@ -66,20 +66,6 @@ class DsdTest : public ::testing::Test {
 };
 
 typedef ::testing::Types<
-    Problem<32, 32, 64, 32*32, 32>,   // Minimum problem size.
-    Problem<32, 64, 64, 32*64, 32>,   // Two inner loops.
-    Problem<64, 32, 64, 64*32, 32>,   // Two rows of blocks.
-    Problem<32, 32, 128, 32*32, 32>,  // Two tile columns.
-    Problem<32, 64, 64, 32*32, 32>,   // 50% sparse.
-    Problem<64, 64, 64, 32*64, 32>,   // 50% sparse, multi-row.
-    // Larger problems.
-    Problem<128, 128, 128, 32*128, 32>,
-    Problem<512, 512, 1024, 512*512, 32>,
-    Problem<512, 512, 1024, 256*512, 32>,
-    Problem<512, 512, 1024, 128*512, 32>,
-    Problem<1024, 1024, 1024, 1024*1024, 32>,
-    Problem<1024, 1024, 1024, 512*1024, 32>,
-    Problem<1024, 1024, 1024, 256*1024, 32>,
     // Block 128 problems NT.
     Problem<128, 128, 8, 128*128, 128, false, true>,    // Minimum problem size.
     Problem<128, 256, 8, 256*128, 128, false, true>,    // Two inner loops.

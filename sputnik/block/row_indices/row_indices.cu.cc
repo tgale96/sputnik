@@ -12,15 +12,9 @@ __global__ void RowIndicesKernel(int m, int block_size,
   int row_offset = __ldg(offsets + m_index);
   int nonzeros = __ldg(offsets + m_index + 1) - row_offset;
 
-  // Divide out to get block domain offsets.
-  const int kValuesPerBlock = block_size * block_size;
-  row_offset /= kValuesPerBlock;
-  nonzeros /= kValuesPerBlock;
-
   // Write the row index out for every sparse block.
-  int row_index = m_index * block_size;
   for (int idx = threadIdx.x; idx < nonzeros; idx += blockDim.x) {
-    row_indices[row_offset + idx] = row_index;
+    row_indices[row_offset + idx] = m_index;
   }
 }
   

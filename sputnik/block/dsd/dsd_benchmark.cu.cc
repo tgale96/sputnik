@@ -109,8 +109,7 @@ void BM_Dsd(benchmark::State& state) {
 
   // Report throughput.
   int64_t flops = (int64_t)state.iterations() * kIterations *
-                  lhs_matrix.NumElementsWithPadding() *
-                  kBlockDim * kBlockDim * kDimN * 2;
+                  lhs_matrix.NumElementsWithPadding() * kDimN * 2;
   state.counters["FLOPS"] = benchmark::Counter(
       flops, benchmark::Counter::kIsRate,
       benchmark::Counter::OneK::kIs1000);

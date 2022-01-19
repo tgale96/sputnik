@@ -12,13 +12,10 @@ class CudaBlockSparseMatrix;
 
 class BlockSparseMatrix : public SparseMatrix {
  public:
-  // NOTE: All matrix properties are currently in terms of
-  // individual nonzero values, not blocks. This is also
-  // true for all matrix meta-data.
-  //
-  // TODO(tgale): Consider altering this depending on how
-  // we want to expose the meta-data. It would be most
-  // useful to match cuSPARSE.
+  // NOTE: All matrix properties are in terms of individual
+  // nonzero values, not blocks. However, matrix meta-data
+  // (offsets & indices) are in terms of blocks to more
+  // effectively use the representation power of int/int16.
   BlockSparseMatrix(int rows, int columns, int nonzeros, int block_dim,
                     ElementDistribution weight_distribution,
                     absl::BitGen* generator, int pad_rows_to=4,
@@ -37,12 +34,10 @@ class BlockSparseMatrix : public SparseMatrix {
   int BlockDim() const { return block_dim_; }
 
   void Fill(float val) {
-    size_t n = NumElementsWithPadding() * BlockDim() * BlockDim();
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < NumElementsWithPadding(); ++i) {
       values_[i] = val;
     }
   }
-
 
  private:
   int block_dim_;
@@ -78,8 +73,7 @@ class CudaBlockSparseMatrix : public CudaSparseMatrix<Value> {
  * @brief Helper to load sparse matrix values into a std::vector.
  */
 inline std::vector<float> ToVector(const BlockSparseMatrix& sparse_matrix) {
-  int num = sparse_matrix.NumElementsWithPadding() *
-            sparse_matrix.BlockDim() * sparse_matrix.BlockDim();
+  int num = sparse_matrix.NumElementsWithPadding();
   std::vector<float> out(sparse_matrix.Values(), sparse_matrix.Values() + num);
   return out;
 }
@@ -96,13 +90,13 @@ inline Matrix ToMatrix(const BlockSparseMatrix &x) {
   int cols = x.Columns();
   int brows = rows / bd;
   for (int i = 0; i < brows; ++i) {
-    for (int l = ro[i]; l < ro[i + 1]; l += bd * bd) {
-      int idx_offset = l / (bd * bd);
-      int j = co[idx_offset];
+    for (int l = ro[i]; l < ro[i + 1]; ++l) {
+      int offset = l * (bd * bd);
+      int j = co[l] * bd;
 
       for (int br = 0; br < bd; ++br) {
 	for (int bc = 0; bc < bd; ++bc) {
-	  float v = x.Values()[l + br * bd + bc];
+	  float v = x.Values()[offset + br * bd + bc];
 	  int row_idx = i * bd + br;
 	  int col_idx = j + bc;
 	  out[row_idx * cols + col_idx] = v;

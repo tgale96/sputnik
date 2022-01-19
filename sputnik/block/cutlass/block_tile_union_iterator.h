@@ -104,7 +104,8 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
     if (kAdvanceRank) {
       int absolute_offset = __ldg(
-          iterator.params_.block_offsets + offset_to_block);
+	iterator.params_.block_offsets + offset_to_block) *
+	Base::kBytesPerBlock;
       int relative_offset = absolute_offset -
                             iterator.current_offset_ -
                             Base::kBytesPerBlock;

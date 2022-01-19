@@ -59,9 +59,6 @@ BlockSparseMatrix::BlockSparseMatrix(
 
   // Figure out exactly how much storage we need for the padded matrices,
   // allocate the storage, and copy the matrices into our storage.
-  //
-  // TODO(tgale): This is in the block domain. Figure out exactly how
-  // we want to standardize this and fix this everywhere.
   num_elements_with_padding_ = row_offsets_staging[block_rows];
 
   column_indices_ = new int[num_elements_with_padding_];
@@ -78,26 +75,20 @@ BlockSparseMatrix::BlockSparseMatrix(
   IdentityRowSwizzle(block_rows, row_offsets_, row_indices_);
 
   // Create the sparse block values.
-  const int kNumValues = num_elements_with_padding_ * block_dim * block_dim;
-  values_ = new float[kNumValues];
-  for (int64_t i = 0; i < kNumValues; ++i) {
+  //
+  // NOTE: Scale the nnz counter to be in terms of individual nonzeros.
+  num_elements_with_padding_ *= block_dim * block_dim;
+  values_ = new float[num_elements_with_padding_];
+  for (int64_t i = 0; i < num_elements_with_padding_; ++i) {
     values_[i] = absl::Uniform<float>(*generator, -1, 1);
-  }
-
-  // Update the meta-data to take blocking into account.
-  for (int i = 0; i < num_elements_with_padding_; ++i) {
-    column_indices_[i] *= block_dim;
-  }
-  for (int i = 0; i < block_rows + 1; ++i) {
-    row_offsets_[i] *= block_dim * block_dim;
   }
 
   if (unordered_indices) {
     // If we want unordered indices, randomly shuffle each
     // block row of indices.
     for (int i = 0; i < block_rows; ++i) {
-      int start = row_offsets_[i] / (block_dim * block_dim);
-      int end = row_offsets_[i + 1] / (block_dim * block_dim);
+      int start = row_offsets_[i];
+      int end = row_offsets_[i + 1];
       std::shuffle(column_indices_ + start, column_indices_ + end, *generator);
     }
   }
@@ -118,36 +109,34 @@ BlockSparseMatrix::BlockSparseMatrix(
 
   // Block domain matrix properties.
   int block_rows = rows_ / block_dim_;
+  int num_blocks = num_elements_with_padding_ / (block_dim_ * block_dim_);
 
   // Allocate temporary single-precision data on the GPU and
   // convert the matrix data to int/float.
   int *column_indices_gpu = nullptr;
-  CUDA_CALL(cudaMalloc(
-      &column_indices_gpu,
-      num_elements_with_padding_ * sizeof(int)));
-  Convert(
-      sparse_matrix.ColumnIndices(),
-      column_indices_gpu,
-      num_elements_with_padding_);
+  CUDA_CALL(cudaMalloc(&column_indices_gpu,
+		       num_blocks * sizeof(int)));
+  Convert(sparse_matrix.ColumnIndices(),
+	  column_indices_gpu,
+	  num_blocks);
 
   float *values_gpu = nullptr;
-  const int kNumValues = num_elements_with_padding_ * block_dim_ * block_dim_;
   CUDA_CALL(cudaMalloc(
       &values_gpu,
-      kNumValues * sizeof(float)));
-  Convert(sparse_matrix.Values(), values_gpu, kNumValues);
+      num_elements_with_padding_ * sizeof(float)));
+  Convert(sparse_matrix.Values(), values_gpu, num_elements_with_padding_);
 
   // Allocate storage for the matrix.
-  column_indices_ = new int[num_elements_with_padding_];
+  column_indices_ = new int[num_blocks];
   row_offsets_ = new int[block_rows + 1];
   row_indices_ = new int[block_rows];
-  values_ = new float[kNumValues];
+  values_ = new float[num_elements_with_padding_];
 
   // Copy the data from the device.
   CUDA_CALL(cudaMemcpy(
       column_indices_,
       column_indices_gpu,
-      sizeof(int) * num_elements_with_padding_,
+      sizeof(int) * num_blocks,
       cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaMemcpy(
       row_offsets_,
@@ -162,7 +151,7 @@ BlockSparseMatrix::BlockSparseMatrix(
   CUDA_CALL(cudaMemcpy(
       values_,
       values_gpu,
-      kNumValues * sizeof(float),
+      num_elements_with_padding_ * sizeof(float),
       cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaStreamSynchronize(0));
 
@@ -205,12 +194,12 @@ void CudaBlockSparseMatrix<Value>::InitFromBlockSparseMatrix(
 
   // Block domain properties.
   int block_rows = this->rows_ / block_dim_;
+  int num_blocks = this->num_elements_with_padding_ / (block_dim_ * block_dim_);
 
   // Allocate memory on the GPU for our matrix.
-  const int kNumValues = this->num_elements_with_padding_ *
-                         block_dim_ * block_dim_;
+  const int kNumValues = this->num_elements_with_padding_;
   float *values_float = nullptr;
-  const int kNumIndices = this->num_elements_with_padding_;
+  const int kNumIndices = num_blocks;
   int *column_indices_int = nullptr;
   CUDA_CALL(cudaMalloc(
       &values_float, sizeof(float) * kNumValues));

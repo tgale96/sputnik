@@ -22,13 +22,12 @@ std::vector<int> Argsort(const std::vector<T> &x) {
 std::vector<short> RowIndices(
     const std::vector<int> &offsets,
     int nnz, int block_size) {
-  const int kValuesPerBlock = block_size * block_size;
   std::vector<short> out(nnz);
   for (int i = 0; i < offsets.size() - 1; ++i) {
-    int start = offsets[i] / kValuesPerBlock;
-    int end = offsets[i + 1] / kValuesPerBlock;
+    int start = offsets[i];
+    int end = offsets[i + 1];
     for (int off = start; off < end; ++off) {
-      out[off] = i * block_size;
+      out[off] = i;
     }
   }
   return out;
@@ -44,10 +43,9 @@ std::vector<T> Gather(const std::vector<T> &data, const std::vector<int> &idxs) 
   return out;
 }
 
-std::vector<int> Iota(int start, int end, int scale) {
+std::vector<int> Iota(int start, int end) {
   std::vector<int> out(end - start);
   std::iota(out.begin(), out.end(), start);
-  for (int &x : out) x *= scale;
   return out;
 }
 
@@ -68,30 +66,15 @@ std::vector<int> Cumsum(const std::vector<int> &x) {
   return out;
 }
 
-std::vector<int> Mul(const std::vector<int> &x, int scale) {
-  std::vector<int> out(x.size());
-  for (int i = 0; i < x.size(); ++i) {
-    out[i] = x[i] * scale;
-  }
-  return out;
-}
-
-std::vector<short> Div(const std::vector<short> &x, int div) {
-  std::vector<short> out(x.size());
-  for (int i = 0; i < x.size(); ++i) {
-    out[i] = x[i] / div;
-  }
-  return out;
-}
-
 // TODO(tgale): Replace this PoC with device kernels.
 cudaError_t Transpose(BlockMatrix a, cudaStream_t stream) {
   // Copy the meta-data to the host.
   const int kBlockSize = AsInt(a.block_size);
   const int kBlockRows = a.rows / kBlockSize;
   const int kBlockCols = a.cols / kBlockSize;
+  const int kBlocks = a.nonzeros / (kBlockSize * kBlockSize);
   std::vector<int> offsets(kBlockRows + 1);
-  std::vector<short> indices(a.nonzeros);
+  std::vector<short> indices(kBlocks);
 
   CUDA_CALL(cudaMemcpyAsync(
       offsets.data(), a.offsets,
@@ -106,7 +89,7 @@ cudaError_t Transpose(BlockMatrix a, cudaStream_t stream) {
   // matrix's column indices.
   std::vector<int> gather_indices = Argsort(indices);
   std::vector<short> row_indices = RowIndices(
-      offsets, a.nonzeros, kBlockSize);
+      offsets, kBlocks, kBlockSize);
 
   std::vector<short> indices_t = Gather(row_indices, gather_indices);
 
@@ -116,12 +99,12 @@ cudaError_t Transpose(BlockMatrix a, cudaStream_t stream) {
   // NOTE: We need to use 32-bit precision for these offsets.
   const int kValuesPerBlock = kBlockSize * kBlockSize;
   const int kBytesPerBlock = kValuesPerBlock * sizeof(half);
-  std::vector<int> block_offsets = Iota(0, a.nonzeros, kBytesPerBlock);
+  std::vector<int> block_offsets = Iota(0, kBlocks);
   std::vector<int> block_offsets_t = Gather(block_offsets, gather_indices);
 
   // Calculate the transposed matrix's offsets.
-  std::vector<int> nnz_per_column = Histogram(Div(indices, kBlockSize), kBlockCols);
-  std::vector<int> offsets_t = Mul(Cumsum(nnz_per_column), kValuesPerBlock);
+  std::vector<int> nnz_per_column = Histogram(indices, kBlockCols);
+  std::vector<int> offsets_t = Cumsum(nnz_per_column);
 
   // Make sure the outputs are allocated.
   CHECK(a.offsets_t);
