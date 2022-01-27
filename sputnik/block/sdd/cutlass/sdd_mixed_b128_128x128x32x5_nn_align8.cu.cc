@@ -32,7 +32,10 @@ using sdd_mixed_b128_128x128x32x5_nn_align8_base =
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
-  ::cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<8>,
+  // NOTE: The output is always row-major and we have no guarantees
+  // on the topology. Schedule in the one dimension where we are
+  // guaranteed to have reuse.
+  ::cutlass::gemm::threadblock::GemmHorizontalThreadblockSwizzle,
   5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
