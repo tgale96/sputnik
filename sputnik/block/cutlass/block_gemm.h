@@ -475,47 +475,37 @@ struct OutputConfig<Gemm, BlockRowMajor> {
   using Meta = typename Type<Element>::Meta;
 
   Params const &params;
-  int offset_c, nnz_columns_c;
 
   CUTLASS_DEVICE
-  OutputConfig(Params const & params_, const GemmCoord &offset) : params(params_) {
-    // NOTE: It's required that C & D have the same topology.
-    int *offset_ptr_c = (int*)params_.op_C.offsets;
-    int block_row_idx = offset.m();
-
-    offset_c = __ldg(offset_ptr_c + block_row_idx);
-
-    // Multiply by blocksize to get columns.
-    nnz_columns_c = (__ldg(offset_ptr_c + block_row_idx + 1) - offset_c) * kBlockSize;
-
-    // Update the offset based on this threadblock's column index.
-    offset_c += offset.n();
-  }
+  OutputConfig(Params const & params_, const GemmCoord &offset) :
+    params(params_) {}
 
   CUTLASS_DEVICE
   bool EarlyExit(const GemmCoord &offset) const {
-    const int kColumnOffset =
-        offset.n() * Gemm::Mma::Shape::kN;
-    return nnz_columns_c <= kColumnOffset ||
-        params.grid_tiled_shape.m() <= offset.m();
+    // NOTE: We always launch the exact number of
+    // threadblocks needed for the output.
+    return false;
   }
 
   CUTLASS_DEVICE
   GemmCoord UpdateTileOffset(const GemmCoord &offset) const {
-    // Load the column index for the output block.
-    Meta *index_ptr_c = (Meta*)params.op_C.indices;
-    int index = (int)__ldg(index_ptr_c + offset_c);
-    return {offset.m(), index, offset.k()};
+    // NOTE: It's required that C & D have the same topology.
+    int block_index = offset.m();
+
+    Meta column_index = __ldg((Meta*)params.op_C.indices + block_index);
+    Meta row_index = __ldg((Meta*)params.op_C.row_indices + block_index);
+    return {row_index, column_index, offset.k()};
   }
 
   CUTLASS_DEVICE
   RetOffsetC OffsetC(const GemmCoord &offset) const {
-    return offset_c * kValuesPerBlock;
+    return offset.m() * kValuesPerBlock;
   }
 
   CUTLASS_DEVICE
   RetExtentC ExtentC() const {
-    return {params.problem_size.m(), nnz_columns_c};
+    // NOTE: This is unused.
+    return params.problem_size.mn();
   }
 };
 

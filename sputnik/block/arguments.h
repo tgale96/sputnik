@@ -231,17 +231,17 @@ inline bool ValidMatmul(
   return valid;
 }
 
-// TODO(tgale): Is this a large over estimate? Are
-// we doing this inside stk?
 inline void AllocateTransposeBuffers(BlockMatrix &a) {
   const int kBlockCols = a.cols / AsInt(a.block_size);
   size_t offset_bytes = (kBlockCols + 1) * sizeof(int);
   CUDA_CALL(cudaMalloc(&a.offsets_t, offset_bytes));
 
-  size_t indices_bytes = a.nonzeros * sizeof(short);
+  const int kBlockSize = AsInt(a.block_size);
+  const int kNonzeroBlocks = a.nonzeros / (kBlockSize * kBlockSize);
+  size_t indices_bytes = kNonzeroBlocks * sizeof(short);
   CUDA_CALL(cudaMalloc(&a.indices_t, indices_bytes));
 
-  size_t block_offsets_bytes = a.nonzeros * sizeof(int);
+  size_t block_offsets_bytes = kNonzeroBlocks * sizeof(int);
   CUDA_CALL(cudaMalloc(&a.block_offsets, block_offsets_bytes));
 }
 

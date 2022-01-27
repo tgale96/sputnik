@@ -174,7 +174,8 @@ TYPED_TEST(SddTest, Sdd) {
   // Allocate space for the row indices and set them up.
   BlockMatrix out_args = Arg(out_gpu);
   AllocateRowIndicesBuffer(out_args);
-  RowIndices(out_args, (short*)out_args.row_indices, /*stream=*/0);
+  CUDA_CALL(RowIndices(out_args, (short*)out_args.row_indices, /*stream=*/0));
+  CUDA_CALL(cudaStreamSynchronize(nullptr));
 
   // Run the gpu kernel.
   CUDA_CALL(Matmul(Arg(lhs_gpu), this->kTransposeA,

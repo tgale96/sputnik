@@ -16,6 +16,7 @@
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/ssd/ssd.h"
 #include "sputnik/block/matrix_utils.h"
+#include "sputnik/block/row_indices/row_indices.h"
 
 #include "absl/random/random.h"
 #include "gmock/gmock.h"
@@ -197,14 +198,23 @@ TYPED_TEST(SsdTest, Ssd) {
   sputnik::Matrix out = ToMatrix(out_);
   CudaBlockSparseMatrix<half> out_gpu(out_);
 
+  // Allocate space for the row indices and set them up.
+  BlockMatrix out_args = Arg(out_gpu);
+  AllocateRowIndicesBuffer(out_args);
+  CUDA_CALL(RowIndices(out_args, (short*)out_args.row_indices, /*stream=*/0));
+  CUDA_CALL(cudaStreamSynchronize(nullptr));
+
   // Run the gpu kernel.
   BlockMatrix lhs_args = Arg(lhs_gpu);
   if (this->kTransposeA) AllocateTransposeBuffers(lhs_args);
   CUDA_CALL(Matmul(lhs_args, this->kTransposeA,
                    Arg(rhs_gpu), this->kTransposeB,
-                   Arg(out_gpu), /*stream=*/0));
+                   out_args, /*stream=*/0));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
   if (this->kTransposeA) FreeTransposeBuffers(lhs_args);
+
+  // Free the row indices buffer.
+  FreeRowIndicesBuffer(out_args);
 
   // Verify the results.
   sputnik::Matrix expected =

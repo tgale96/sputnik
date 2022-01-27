@@ -16,7 +16,7 @@ class Kernel {
   using ThreadblockShape = typename KernelFn::Mma::Shape;
   using Arguments = typename KernelFn::Arguments;
 
-  cudaError_t smem_config() {
+  static cudaError_t smem_config() {
     // Get shared memory requirements for kernel and adjust
     // devices settings if necessary.
     int smem_size = int(sizeof(typename KernelFn::SharedStorage));
@@ -71,7 +71,7 @@ protected:
 };
 
 template <typename KernelFn_>
-class SparseOutputKernel : Kernel<KernelFn_> {
+class SparseOutputKernel {
  public:
   using KernelFn = KernelFn_;
   using ThreadblockSwizzle = typename KernelFn::ThreadblockSwizzle;
@@ -90,9 +90,26 @@ class SparseOutputKernel : Kernel<KernelFn_> {
 	threadblock_swizzle.get_tiled_shape(args.op_C.nnz, kBlockSize);
 
     // Initialize the kernel parameters.
-    this->params_ = typename KernelFn::Params(args, grid_tiled_shape);
-    return this->smem_config();
+    params_ = typename KernelFn::Params(args, grid_tiled_shape);
+    return Kernel<KernelFn>::smem_config();
   }
+
+  cudaError_t operator()(Arguments const &args, cudaStream_t stream = nullptr) {
+    cudaError_t status = initialize(args);
+    if (status != cudaSuccess) return status;
+
+    ThreadblockSwizzle threadblock_swizzle;
+    dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
+    dim3 block(KernelFn::kThreadCount, 1, 1);
+    int smem_size = int(sizeof(typename KernelFn::SharedStorage));
+
+    // Launch the kernel.
+    ::cutlass::Kernel<KernelFn><<<grid, block, smem_size, stream>>>(params_);
+    return cudaGetLastError();
+  }
+
+protected:
+  typename KernelFn::Params params_;
 };
 
 }  // namespace cutlass

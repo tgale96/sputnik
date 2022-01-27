@@ -3,6 +3,7 @@
 #include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "sputnik/block/cutlass/default_block_gemm.h"
 #include "sputnik/block/cutlass/kernel.h"
+#include "sputnik/block/cutlass/threadblock_swizzle.h"
 #include "sputnik/block/transpose/transpose.h"
 
 namespace sputnik {
@@ -32,7 +33,7 @@ using sds_mixed_b128_128x128x32x5_tt_align8_base =
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
-  ::cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<8>,
+  SparseOutputThreadblockSwizzle,
   5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
@@ -71,15 +72,26 @@ cudaError_t launch_sds_mixed_b128_128x128x32x5_tt_align8(
     const Matrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b,
     BlockMatrix c, cudaStream_t stream) {
-  using Sds = Kernel<sds_mixed_b128_128x128x32x5_tt_align8>;
+  using Sds = SparseOutputKernel<sds_mixed_b128_128x128x32x5_tt_align8>;
+  CHECK(c.row_indices);
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Sds::Arguments args({shape.m, shape.n, shape.k},
                       {1.0f, 0.0f},
                       {a.data, shape.lda},
                       {b.data, b.offsets, b.indices, shape.ldb},
-                      {c.data, c.offsets, c.indices, shape.ldc},
-                      {c.data, c.offsets, c.indices, shape.ldc});
+                      {c.data,
+		       c.offsets,
+		       c.indices,
+		       c.row_indices,
+		       shape.ldc,
+		       c.nonzeros},
+                      {c.data,
+		       c.offsets,
+		       c.indices,
+		       c.row_indices,
+		       shape.ldc,
+		       c.nonzeros});
 
   // Verify that we can implement the given problem.
   ::cutlass::Status status = Sds::KernelFn::can_implement(args);
