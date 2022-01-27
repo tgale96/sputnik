@@ -59,11 +59,11 @@ struct BlockMatrix {
   void *indices_t;
   void *block_offsets;
 
-  // Data for sparse * sparse products.
-  void *bitmask;
-
   // Data for sparse output.
   void *row_indices;
+
+  // Data for sparse * sparse products.
+  void *bitmask;
 
   // TODO(tgale): Get rid of this and plumb the APIs.
   bool create_metadata = true;
