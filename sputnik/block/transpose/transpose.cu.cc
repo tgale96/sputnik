@@ -97,8 +97,6 @@ cudaError_t Transpose(BlockMatrix a, cudaStream_t stream) {
   // matrix's block locations for each block row.
   //
   // NOTE: We need to use 32-bit precision for these offsets.
-  const int kValuesPerBlock = kBlockSize * kBlockSize;
-  const int kBytesPerBlock = kValuesPerBlock * sizeof(half);
   std::vector<int> block_offsets = Iota(0, kBlocks);
   std::vector<int> block_offsets_t = Gather(block_offsets, gather_indices);
 

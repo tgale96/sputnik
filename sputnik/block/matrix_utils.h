@@ -118,7 +118,8 @@ inline block::BlockMatrix Arg(const CudaBlockSparseMatrix<T> &m) {
                          m.NumElementsWithPadding(),
                          (const void*)m.Values(),
                          (const void*)m.RowOffsets(),
-                         (const void*)m.ColumnIndices());
+                         (const void*)m.ColumnIndices(),
+			 nullptr);
   return out;
 }
 

@@ -15,6 +15,7 @@
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/sdd/sdd.h"
 #include "sputnik/block/matrix_utils.h"
+#include "sputnik/block/row_indices/row_indices.h"
 
 #include "absl/random/random.h"
 #include "gmock/gmock.h"
@@ -170,11 +171,19 @@ TYPED_TEST(SddTest, Sdd) {
   sputnik::Matrix out = ToMatrix(out_);
   CudaBlockSparseMatrix<half> out_gpu(out_);
 
+  // Allocate space for the row indices and set them up.
+  BlockMatrix out_args = Arg(out_gpu);
+  AllocateRowIndicesBuffer(out_args);
+  RowIndices(out_args, (short*)out_args.row_indices, /*stream=*/0);
+
   // Run the gpu kernel.
   CUDA_CALL(Matmul(Arg(lhs_gpu), this->kTransposeA,
                    Arg(rhs_gpu), this->kTransposeB,
-                   Arg(out_gpu), /*stream=*/0));
+                   out_args, /*stream=*/0));
   CUDA_CALL(cudaStreamSynchronize(nullptr));
+
+  // Free the row indices buffer.
+  FreeRowIndicesBuffer(out_args);
 
   // Verify the results.
   sputnik::Matrix expected =

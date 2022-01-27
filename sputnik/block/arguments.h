@@ -62,9 +62,12 @@ struct BlockMatrix {
   // Data for sparse * sparse products.
   void *bitmask;
 
+  // Data for sparse output.
+  void *row_indices;
+
   // TODO(tgale): Get rid of this and plumb the APIs.
   bool create_metadata = true;
-  
+
   BlockMatrix(int rows_,
               int cols_,
               BlockSize block_size_,
@@ -81,6 +84,27 @@ struct BlockMatrix {
         offsets_t(nullptr),
         indices_t(nullptr),
         block_offsets(nullptr),
+	row_indices(nullptr),
+        bitmask(nullptr) {}
+
+  BlockMatrix(int rows_,
+              int cols_,
+              BlockSize block_size_,
+              int nonzeros_,
+              void const *data_,
+              void const *offsets_,
+              void const *indices_,
+	      void const *row_indices_)
+      : rows(rows_), cols(cols_),
+        nonzeros(nonzeros_),
+        block_size(block_size_),
+        data(const_cast<void*>(data_)),
+        offsets(const_cast<void*>(offsets_)),
+        indices(const_cast<void*>(indices_)),
+        offsets_t(nullptr),
+        indices_t(nullptr),
+        block_offsets(nullptr),
+	row_indices(const_cast<void*>(row_indices_)),
         bitmask(nullptr) {}
 
   BlockMatrix(int rows_,
@@ -102,6 +126,7 @@ struct BlockMatrix {
         offsets_t(const_cast<void*>(offsets_t_)),
         indices_t(const_cast<void*>(indices_t_)),
         block_offsets(const_cast<void*>(block_offsets_)),
+	row_indices(nullptr),
         bitmask(nullptr) {}
 
   BlockMatrix(int rows_,
@@ -124,6 +149,7 @@ struct BlockMatrix {
         offsets_t(const_cast<void*>(offsets_t_)),
         indices_t(const_cast<void*>(indices_t_)),
         block_offsets(const_cast<void*>(block_offsets_)),
+	row_indices(nullptr),
         bitmask(const_cast<void*>(bitmask_)) {}
 };
 
@@ -205,6 +231,8 @@ inline bool ValidMatmul(
   return valid;
 }
 
+// TODO(tgale): Is this a large over estimate? Are
+// we doing this inside stk?
 inline void AllocateTransposeBuffers(BlockMatrix &a) {
   const int kBlockCols = a.cols / AsInt(a.block_size);
   size_t offset_bytes = (kBlockCols + 1) * sizeof(int);
@@ -226,6 +254,18 @@ inline void FreeTransposeBuffers(BlockMatrix &a) {
   }
   if (a.block_offsets != nullptr) {
     CUDA_CALL(cudaFree(a.block_offsets));
+  }
+}
+
+inline void AllocateRowIndicesBuffer(BlockMatrix &a) {
+  const int kBlockSize = AsInt(a.block_size);
+  size_t bytes = a.nonzeros / (kBlockSize * kBlockSize) * sizeof(short);
+  CUDA_CALL(cudaMalloc(&a.row_indices, bytes));
+}
+
+inline void FreeRowIndicesBuffer(BlockMatrix &a) {
+  if (a.row_indices != nullptr) {
+    CUDA_CALL(cudaFree(a.row_indices));
   }
 }
 
