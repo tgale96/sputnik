@@ -9,7 +9,7 @@ namespace cutlass {
 
 namespace {
 
-using dsd_mixed_b128_128x256x32x3_nt_align8_base =
+using dsd_mixed_b128_128x128x32x5_nt_align8_base =
   typename DefaultBlockGemm<
   BlockSize::k128,
   // Non-transposed A operand.
@@ -26,25 +26,25 @@ using dsd_mixed_b128_128x256x32x3_nt_align8_base =
   float,
   ::cutlass::arch::OpClassTensorOp,
   ::cutlass::arch::Sm80,
-  ::cutlass::gemm::GemmShape<128, 256, 32>,
+  ::cutlass::gemm::GemmShape<128, 128, 32>,
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
-  ::cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<8>,
-  3,
+  ::cutlass::gemm::threadblock::GemmHorizontalThreadblockSwizzle,
+  5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
 
 // Define named type
-struct dsd_mixed_b128_128x256x32x3_nt_align8 :
-  public dsd_mixed_b128_128x256x32x3_nt_align8_base { };
+struct dsd_mixed_b128_128x128x32x5_nt_align8 :
+  public dsd_mixed_b128_128x128x32x5_nt_align8_base { };
 
 }  // namespace
 
-bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
+bool can_launch_dsd_mixed_b128_128x128x32x5_nt_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b, Matrix c) {
-  using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
+  using Dsd = Kernel<dsd_mixed_b128_128x128x32x5_nt_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Dsd::Arguments args({shape.m, shape.n, shape.k},
@@ -64,11 +64,11 @@ bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
 }
 
 
-cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
+cudaError_t launch_dsd_mixed_b128_128x128x32x5_nt_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b,
     Matrix c, cudaStream_t stream) {
-  using Dsd = Kernel<dsd_mixed_b128_128x256x32x3_nt_align8>;
+  using Dsd = Kernel<dsd_mixed_b128_128x128x32x5_nt_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Dsd::Arguments args({shape.m, shape.n, shape.k},

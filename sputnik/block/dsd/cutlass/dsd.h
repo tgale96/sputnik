@@ -8,38 +8,38 @@ namespace sputnik {
 namespace block {
 namespace cutlass {
 
-bool can_launch_dsd_mixed_b128_128x256x32x3_tt_align8(
+bool can_launch_dsd_mixed_b128_128x128x32x5_tt_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b, Matrix c);
 
-cudaError_t launch_dsd_mixed_b128_128x256x32x3_tt_align8(
+cudaError_t launch_dsd_mixed_b128_128x128x32x5_tt_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b,
     Matrix c, cudaStream_t stream);
 
-bool can_launch_dsd_mixed_b128_128x256x32x3_tn_align8(
+bool can_launch_dsd_mixed_b128_128x128x32x5_tn_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b, Matrix c);
 
-cudaError_t launch_dsd_mixed_b128_128x256x32x3_tn_align8(
+cudaError_t launch_dsd_mixed_b128_128x128x32x5_tn_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b,
     Matrix c, cudaStream_t stream);
 
-bool can_launch_dsd_mixed_b128_128x256x32x3_nt_align8(
+bool can_launch_dsd_mixed_b128_128x128x32x5_nt_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b, Matrix c);
 
-cudaError_t launch_dsd_mixed_b128_128x256x32x3_nt_align8(
+cudaError_t launch_dsd_mixed_b128_128x128x32x5_nt_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b,
     Matrix c, cudaStream_t stream);
 
-bool can_launch_dsd_mixed_b128_128x256x32x3_nn_align8(
+bool can_launch_dsd_mixed_b128_128x128x32x5_nn_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b, Matrix c);
 
-cudaError_t launch_dsd_mixed_b128_128x256x32x3_nn_align8(
+cudaError_t launch_dsd_mixed_b128_128x128x32x5_nn_align8(
     const BlockMatrix a, bool transpose_a,
     const Matrix b, bool transpose_b,
     Matrix c, cudaStream_t stream);

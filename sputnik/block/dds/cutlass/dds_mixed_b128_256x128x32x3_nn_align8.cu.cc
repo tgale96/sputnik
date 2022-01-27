@@ -11,7 +11,7 @@ namespace cutlass {
 
 namespace {
 
-using dds_mixed_b128_256x128x32x3_nn_align8_base =
+using dds_mixed_b128_128x128x32x5_nn_align8_base =
   typename DefaultBlockGemm<
   BlockSize::k128,
   // Non-transposed A operand.
@@ -28,26 +28,26 @@ using dds_mixed_b128_256x128x32x3_nn_align8_base =
   float,
   ::cutlass::arch::OpClassTensorOp,
   ::cutlass::arch::Sm80,
-  ::cutlass::gemm::GemmShape<256, 128, 32>,
+  ::cutlass::gemm::GemmShape<128, 128, 32>,
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
-  ::cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<8>,
-  3,
+  ::cutlass::gemm::threadblock::GemmHorizontalThreadblockSwizzle,
+  5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
 
 // Define named type
-struct dds_mixed_b128_256x128x32x3_nn_align8 :
-  public dds_mixed_b128_256x128x32x3_nn_align8_base { };
+struct dds_mixed_b128_128x128x32x5_nn_align8 :
+  public dds_mixed_b128_128x128x32x5_nn_align8_base { };
 
 }  // namespace
 
 
-bool can_launch_dds_mixed_b128_256x128x32x3_nn_align8(
+bool can_launch_dds_mixed_b128_128x128x32x5_nn_align8(
     const Matrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b, Matrix c) {
-  using Dds = Kernel<dds_mixed_b128_256x128x32x3_nn_align8>;
+  using Dds = Kernel<dds_mixed_b128_128x128x32x5_nn_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Dds::Arguments args({shape.m, shape.n, shape.k},
@@ -66,7 +66,7 @@ bool can_launch_dds_mixed_b128_256x128x32x3_nn_align8(
   return can_implement;
 }
 
-cudaError_t launch_dds_mixed_b128_256x128x32x3_nn_align8(
+cudaError_t launch_dds_mixed_b128_128x128x32x5_nn_align8(
     const Matrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b,
     Matrix c, cudaStream_t stream) {
@@ -82,7 +82,7 @@ cudaError_t launch_dds_mixed_b128_256x128x32x3_nn_align8(
     }
   }
 
-  using Dds = Kernel<dds_mixed_b128_256x128x32x3_nn_align8>;
+  using Dds = Kernel<dds_mixed_b128_128x128x32x5_nn_align8>;
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Dds::Arguments args({shape.m, shape.n, shape.k},
