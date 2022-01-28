@@ -2,6 +2,7 @@
 #include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "sputnik/block/cutlass/default_block_gemm.h"
 #include "sputnik/block/cutlass/kernel.h"
+#include "sputnik/block/cutlass/threadblock_swizzle.h"
 #include "sputnik/block/transpose/transpose.h"
 
 namespace sputnik {
@@ -31,7 +32,7 @@ using dsd_mixed_b128_128x128x32x5_tt_align8_base =
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
-  ::cutlass::gemm::threadblock::GemmHorizontalThreadblockSwizzle,
+  GemmVerticalThreadblockSwizzle,
   5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
