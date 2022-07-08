@@ -32,7 +32,7 @@ using dsd_mixed_b128_128x128x32x5_tn_align8_base =
   ::cutlass::gemm::GemmShape<64, 64, 32>,
   ::cutlass::gemm::GemmShape<16, 8, 16>,
   ::cutlass::epilogue::thread::LinearCombination<::cutlass::half_t, 8, float, float>,
-  GemmVerticalThreadblockSwizzle,
+  ::cutlass::gemm::threadblock::GemmHorizontalThreadblockSwizzle,
   5,
   ::cutlass::arch::OpMultiplyAdd
 >::GemmKernel;
