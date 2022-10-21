@@ -40,7 +40,7 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
     // NOTE: We rely on our config to update this
     // parameter inside the kernel. This is a hack.
-    uint8_t *offsets;
+    uint16_t *offsets;
 
     CUTLASS_HOST_DEVICE Params() {}
     CUTLASS_HOST_DEVICE Params(Op op)
@@ -49,7 +49,7 @@ class BlockTileUnionIterator : BlockTileAccessIterator<
 
  private:
   Base iterator;
-  uint8_t *offsets;
+  uint16_t *offsets;
 
  public:
 

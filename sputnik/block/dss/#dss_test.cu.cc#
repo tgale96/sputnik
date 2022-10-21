@@ -1,6 +1,4 @@
-// Copyright 2020 The Sputnik Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
+// Copyright 2020 The Sputnik Authors.// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
@@ -179,33 +177,9 @@ typedef ::testing::Types<
     Problem<1024, 1024, 1024, 1024*1024, 1024*1024, 128, true, true, true>,
     Problem<1024, 1024, 1024, 512*1024, 512*1024, 128, true, true, true>,
     Problem<1024, 1024, 1024, 256*1024, 256*1024, 128, true, true, true>,
-    // Long contraction problems.
-    Problem<128, 2048, 128, 128*2048, 128*2048, 128>,  // Two inner loops.
-    Problem<128, 4096, 128, 128*4096, 128*4096, 128>,
-    Problem<128, 8192, 128, 128*8192, 128*8192, 128>,
-    Problem<128, 16384, 128, 128*8192, 128*8192, 128>,
-    Problem<128, 32768, 128, 128*8192, 128*8192, 128>,
-    Problem<256, 2048, 128, 256*2048, 128*2048, 128>,  // Two rows of blocks.
-    Problem<256, 4096, 128, 256*4096, 128*4096, 128>,
-    Problem<256, 8192, 128, 256*8192, 128*8192, 128>,
-    Problem<256, 16384, 128, 256*16384, 128*16384, 128>,
-    Problem<256, 32768, 128, 256*32768, 128*32768, 128>,
-    Problem<128, 2048, 256, 128*2048, 2048*256, 128>,  // Two columns of blocks.
-    Problem<128, 4096, 256, 128*4096, 4096*256, 128>,
-    Problem<128, 8192, 256, 128*8192, 8192*256, 128>,
-    Problem<128, 16384, 256, 128*16384, 16384*256, 128>,
-    Problem<128, 32768, 256, 128*32768, 32768*256, 128>,
-    Problem<128, 2048, 128, 128*1024, 128*2048, 128>,  // 50% sparse lhs
-    Problem<128, 4096, 128, 128*2048, 128*4096, 128>,
-    Problem<128, 8192, 128, 128*4096, 128*8192, 128>,
-    Problem<128, 16384, 128, 128*4096, 128*8192, 128>,
-    Problem<128, 32768, 128, 128*4096, 128*8192, 128>,
-    Problem<256, 2048, 128, 256*2048, 128*1024, 128>,  // 50% sparse rhs.
-    Problem<256, 4096, 128, 256*4096, 128*2048, 128>,
-    Problem<256, 8192, 128, 256*8192, 128*4096, 128>,
-    Problem<256, 16384, 128, 256*16384, 128*8192, 128>,
-    Problem<256, 32768, 128, 256*32768, 128*16384, 128>
-
+  // Long contraction problems.
+  // 128x32kx128
+  Problem<128, 32*1024, 128, 128*32*1024, 
     > TestProblems;
 
 TYPED_TEST_SUITE(DssTest, TestProblems);

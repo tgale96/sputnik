@@ -99,7 +99,7 @@ struct IndexMerge {
   static constexpr int kThreads = Gemm::kThreadCount;
 
   // The maximum contraction size supported.
-  static constexpr int kMaxContraction = 32 * 1024;
+  static constexpr int kMaxContraction = 32 * 1024 * 8; // * 8
 
   // Block size as an integer.
   static constexpr int kBlockSize = kBlockSize_;
@@ -111,21 +111,21 @@ struct IndexMerge {
   static constexpr int kOffsetsPerThread = kOffsets / kThreads;
 
   // NOTE: This needs to be to let us use 8-bit offsets.
-  static_assert(kOffsets <= 256);
+  static_assert(kOffsets <= 2048); //256
 
   // Sparse matrix metadata type.
   using Meta = typename Type<typename Gemm::ElementA>::Meta;
 
   using Mask = BitVector<kOffsets>;
 
-  // The total number of shared memory bytes.
-  static constexpr int kSmemBytes = kOffsets * 2;
-
   // Mask storage type.
   using Storage = typename Mask::Storage;
 
   // Offset type.
-  using Offset = uint8_t;
+  using Offset = uint16_t;
+
+  // The total number of shared memory bytes.
+  static constexpr int kSmemBytes = kOffsets * sizeof(Offset) * 2;
 
   Offset *data;
   int steps_k;
