@@ -45,7 +45,7 @@ struct ConfigHelper {
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const GemmCoord &offset_,
-               uint8_t *smem) :
+               uint16_t *smem) :
     params(params_), offset(offset_) {}
 
   CUTLASS_HOST_DEVICE
@@ -124,7 +124,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, LayoutB> {
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const GemmCoord &offset_,
-               uint8_t *smem) :
+               uint16_t *smem) :
     params(params_), offset(offset_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_a = (int*)params_.op_A.offsets;
@@ -224,7 +224,7 @@ struct ConfigHelper<Gemm, LayoutA, BlockPitchLinear> {
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const GemmCoord &offset_,
-               uint8_t *smem) :
+               uint16_t *smem) :
     params(params_), offset(offset_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_b = (int*)params_.op_B.offsets;
@@ -332,7 +332,7 @@ struct ConfigHelper<Gemm, BlockPitchLinear, BlockPitchLinear> {
   CUTLASS_DEVICE
   ConfigHelper(Params const &params_,
 	       const GemmCoord &offset,
-               uint8_t *smem) : params(params_) {
+               uint16_t *smem) : params(params_) {
     // Load the offset and number of nonzeros.
     int *offset_ptr_a = (int*)params_.op_A.offsets;
     int block_row_idx = offset.m();
@@ -537,7 +537,7 @@ struct Config {
   CUTLASS_DEVICE
   Config(Params const &params_,
 	 const GemmCoord &offset_,
-         uint8_t* smem) :
+         uint16_t* smem) :
       helper(params_, offset_, smem) {}
 
   CUTLASS_HOST_DEVICE
@@ -747,7 +747,10 @@ public:
   /// Executes one GEMM
   CUTLASS_DEVICE
   void operator()(Params const &params, SharedStorage &shared_storage) {
-    __shared__ uint8_t config_shared[Config::kSmemBytes];
+    // TODO(tgale): Move this into a struct s.t. we can avoid allocating any shared
+    // memory when we're not using it.
+    constexpr int kSmemValues = Config::kSmemBytes / sizeof(uint16_t);
+    __shared__ uint16_t config_shared[kSmemValues > 0 ? kSmemValues : 1];
     // Compute threadblock location
     ThreadblockSwizzle threadblock_swizzle;
 

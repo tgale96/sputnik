@@ -80,7 +80,7 @@ BlockSparseMatrix::BlockSparseMatrix(
   num_elements_with_padding_ *= block_dim * block_dim;
   values_ = new float[num_elements_with_padding_];
   for (int64_t i = 0; i < num_elements_with_padding_; ++i) {
-    values_[i] = absl::Uniform<float>(*generator, -1, 1);
+    values_[i] = absl::Uniform<float>(*generator, -0.5, 0.5);
   }
 
   if (unordered_indices) {
