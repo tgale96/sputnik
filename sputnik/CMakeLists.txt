@@ -86,7 +86,7 @@ list(FILTER SPUTNIK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
 set_source_files_properties(${SPUTNIK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
 
 # Create libsputnik.
-add_library(sputnik SHARED ${SPUTNIK_SRCS})
+add_library(sputnik STATIC ${SPUTNIK_SRCS})
 target_link_libraries(sputnik ${SPUTNIK_LIBS})
 
 # Library installation.
