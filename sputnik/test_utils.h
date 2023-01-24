@@ -26,19 +26,19 @@ namespace sputnik {
   do {                                                      \
     cudaError_t status = code;                              \
     std::string err = cudaGetErrorString(status);           \
-    CHECK_EQ(status, cudaSuccess) << "CUDA Error: " << err; \
+    SPUTNIK_CHECK_EQ(status, cudaSuccess) << "CUDA Error: " << err; \
   } while (0)
 
 #define CUSPARSE_CALL(code)                                        \
   do {                                                             \
     cusparseStatus_t status = code;                                \
-    CHECK_EQ(status, CUSPARSE_STATUS_SUCCESS) << "CuSparse Error"; \
+    SPUTNIK_CHECK_EQ(status, CUSPARSE_STATUS_SUCCESS) << "CuSparse Error"; \
   } while (0)
 
 #define CUBLAS_CALL(code)                                      \
   do {                                                         \
     cublasStatus_t status = code;                              \
-    CHECK_EQ(status, CUBLAS_STATUS_SUCCESS) << "CuBLAS Error"; \
+    SPUTNIK_CHECK_EQ(status, CUBLAS_STATUS_SUCCESS) << "CuBLAS Error"; \
   } while (0)
 
 }  // namespace sputnik

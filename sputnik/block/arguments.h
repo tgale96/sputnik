@@ -41,7 +41,7 @@ inline BlockSize AsBlockSize(int b) {
   } else if (b == 16) {
     return BlockSize::k16;
   }
-  LOG(FATAL) << "Invalid block size.";
+  SPUTNIK_LOG(FATAL) << "Invalid block size.";
   return BlockSize::kNone;
 }
 

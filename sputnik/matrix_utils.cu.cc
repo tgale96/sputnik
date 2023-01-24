@@ -115,7 +115,7 @@ void PadSparseMatrix(const std::vector<int> &row_offsets,
                      std::vector<int> *row_offsets_out,
                      std::vector<float> *values_out,
                      std::vector<int> *column_indices_out) {
-  CHECK_GE(row_padding, 0) << "Row padding factor must be greater than zero.";
+  SPUTNIK_CHECK_GE(row_padding, 0) << "Row padding factor must be greater than zero.";
   if (row_padding < 2) {
     // For row padding to the nearest 1 element, copy the input to the
     // output and return early. We also execute this code path for
@@ -166,7 +166,7 @@ void PadSparseMatrix(const std::vector<int> &row_offsets,
 template <typename In, typename Out>
 cudaError_t Convert(const In *in, Out *out, int n) {
   if (n == 0) return cudaSuccess;
-  CHECK_EQ(n % 2, 0) << "Number of elements must be multiple of 2.";
+  SPUTNIK_CHECK_EQ(n % 2, 0) << "Number of elements must be multiple of 2.";
 
   int threads_per_block = 64;
   int blocks_per_grid = (n + threads_per_block - 1) / threads_per_block;
@@ -231,11 +231,11 @@ void MakeSparseMatrixRandomUniform(int rows, int columns, int nonzeros,
   // The number of elements in the dense version of the matrix.
   int64_t num_elements = static_cast<int64_t>(rows) * columns;
 
-  CHECK_LE(nonzeros, num_elements) << "The number of non-zero elements "
+  SPUTNIK_CHECK_LE(nonzeros, num_elements) << "The number of non-zero elements "
                                    << "must be <= the number of elements.";
-  CHECK_GT(nonzeros, 0)
+  SPUTNIK_CHECK_GT(nonzeros, 0)
       << "The sparse matrix must have at least 1 non-zero value.";
-  CHECK_GE(row_padding, 0) << "Row padding factor must be greater than zero.";
+  SPUTNIK_CHECK_GE(row_padding, 0) << "Row padding factor must be greater than zero.";
 
   // Generate random values for the matrix.
   std::vector<ValueType> nonzero_values(nonzeros);
@@ -283,7 +283,7 @@ void MakeSparseMatrixRandomUniform(int rows, int columns, int nonzeros,
 
       // Set the row offset and sanity check the offset to make sure
       // we padded the row correctly.
-      CHECK_EQ((offset - row_offsets[i]) % row_padding, 0);
+      SPUTNIK_CHECK_EQ((offset - row_offsets[i]) % row_padding, 0);
     }
     row_offsets[i + 1] = offset;
   }
@@ -374,7 +374,7 @@ SparseMatrix::SparseMatrix(int rows, int columns, int nonzeros,
   row_swizzle_ = row_swizzle;
   pad_rows_to_ = pad_rows_to;
 
-  CHECK_LE(pad_rows_to_, columns)
+  SPUTNIK_CHECK_LE(pad_rows_to_, columns)
       << "Rows cannot be padded to more values than there are columns.";
 
   // Create some temporary host-side buffers to build the matrix in.
@@ -393,7 +393,7 @@ SparseMatrix::SparseMatrix(int rows, int columns, int nonzeros,
   } else {
     // Verify that the number of nonzeros divides evenly into the
     // number of rows.
-    CHECK_EQ(nonzeros_ % rows_, 0) << "The number of nonzeros must divide "
+    SPUTNIK_CHECK_EQ(nonzeros_ % rows_, 0) << "The number of nonzeros must divide "
                                    << "evenly by the number of rows to "
                                    << "construct a PERFECT_UNIFORM matrix.";
 
@@ -442,7 +442,7 @@ SparseMatrix::SparseMatrix(int rows, int columns, int nonzeros,
       pad_rows_to_(pad_rows_to),
       weight_distribution_(RANDOM_UNIFORM),
       row_swizzle_(row_swizzle) {
-  CHECK_LE(pad_rows_to_, columns)
+  SPUTNIK_CHECK_LE(pad_rows_to_, columns)
       << "Rows cannot be padded to more values than there are columns.";
 
   // Generate random values for the sparse matrix parameters.
@@ -516,7 +516,7 @@ CudaSparseMatrix<Value>::CudaSparseMatrix(
     int rows, int columns, int nonzeros,
     ElementDistribution weight_distribution, absl::BitGen *generator,
     Swizzle row_swizzle, int pad_rows_to) {
-  CHECK_EQ(pad_rows_to % TypeUtils<Value>::kElementsPerScalar, 0)
+  SPUTNIK_CHECK_EQ(pad_rows_to % TypeUtils<Value>::kElementsPerScalar, 0)
       << "The number of elements in each row must be divisible by "
       << "the number of elements per scalar value for the specified "
       << "data type.";
@@ -532,7 +532,7 @@ CudaSparseMatrix<Value>::CudaSparseMatrix(const SparseMatrix &sparse_matrix) {
   // elements per scalar for the specified data type.
   for (int i = 0; i < sparse_matrix.Rows(); ++i) {
     int nnz = sparse_matrix.RowOffsets()[i + 1] - sparse_matrix.RowOffsets()[i];
-    CHECK_EQ(nnz % TypeUtils<Value>::kElementsPerScalar, 0)
+    SPUTNIK_CHECK_EQ(nnz % TypeUtils<Value>::kElementsPerScalar, 0)
         << "The number of elements in each row must be divisible by "
         << "the number of elements per scalar value for the specified "
         << "data type.";
@@ -695,5 +695,8 @@ template Matrix::Matrix(const CudaMatrix<half> &);
 template cudaError_t Convert(const short2*, int*, int);
 template cudaError_t Convert(const short*, int*, int);
 template cudaError_t Convert(const int*, short*, int);
+template cudaError_t Convert(const half2*, float*, int);
+template cudaError_t Convert(const half*, float*, int);
+template cudaError_t Convert(const int*, short2*, int);
 
 }  // namespace sputnik

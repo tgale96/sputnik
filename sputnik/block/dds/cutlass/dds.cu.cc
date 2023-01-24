@@ -64,7 +64,7 @@ cudaError_t Matmul(const Matrix a, bool transpose_a,
   }
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
-  LOG(FATAL) << "No compatible kernel for dds problem.\n" << "m = " << shape.m <<
+  SPUTNIK_LOG(FATAL) << "No compatible kernel for dds problem.\n" << "m = " << shape.m <<
       "\nn = " << shape.n << "\nk = " << shape.k << "\nblock_size = " <<
       AsInt(b.block_size) << "\ntrans_a = " << transpose_a << "\ntrans_b = " <<
       transpose_b << std::endl;

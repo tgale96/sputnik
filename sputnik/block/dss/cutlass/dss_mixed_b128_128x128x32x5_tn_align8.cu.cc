@@ -73,14 +73,14 @@ cudaError_t launch_dss_mixed_b128_128x128x32x5_tn_align8(
     const BlockMatrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b,
     Matrix c, cudaStream_t stream) {
-  CHECK(a.bitmask);
-  CHECK(a.offsets_t);
-  CHECK(a.indices_t);
-  CHECK(a.block_offsets);
-  CHECK(b.bitmask);
-  CHECK(b.offsets_t);
-  CHECK(b.indices_t);
-  CHECK(b.block_offsets);
+  SPUTNIK_CHECK(a.bitmask);
+  SPUTNIK_CHECK(a.offsets_t);
+  SPUTNIK_CHECK(a.indices_t);
+  SPUTNIK_CHECK(a.block_offsets);
+  SPUTNIK_CHECK(b.bitmask);
+  SPUTNIK_CHECK(b.offsets_t);
+  SPUTNIK_CHECK(b.indices_t);
+  SPUTNIK_CHECK(b.block_offsets);
 
   // Produce the transpose meta-data.
   if (a.create_metadata) {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/sds/sds.h"
 #include "sputnik/block/matrix_utils.h"
@@ -54,8 +56,8 @@ void BM_Sds(benchmark::State& state) {
 
   // Need to set nonzeros differently if
   // we want to generalize.
-  CHECK_EQ(kDimM, kDimK);
-  CHECK_EQ(kDimN, kDimK);
+  SPUTNIK_CHECK_EQ(kDimM, kDimK);
+  SPUTNIK_CHECK_EQ(kDimN, kDimK);
 
   // Create the lhs matrix on gpu.
   absl::BitGen generator;

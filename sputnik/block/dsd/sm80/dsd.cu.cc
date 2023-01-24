@@ -11,7 +11,7 @@ cudaError_t Dsd(int m, int k, int n,
 		const short* indices_a,
 		const half* b, bool transpose_b,
 		half* c, cudaStream_t stream) {
-  CHECK_EQ(transpose_b, false) <<
+  SPUTNIK_CHECK_EQ(transpose_b, false) <<
     "transpose_b not supported with block_size == 32.";
     
   // TODO(tgale): Add a proper kernel selector.
@@ -24,7 +24,7 @@ cudaError_t Dsd(int m, int k, int n,
         m, k, n, nonzeros, block_dim,
 	a, offsets_a, indices_a, b, c, stream);    
   } else {
-    LOG(FATAL) << "No compatible kernel for problem. m/n/k/b = " <<
+    SPUTNIK_LOG(FATAL) << "No compatible kernel for problem. m/n/k/b = " <<
       m << "/" << n << "/" << k << "/" << block_dim << ".";
   }
   return cudaGetLastError();

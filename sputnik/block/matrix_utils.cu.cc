@@ -9,9 +9,9 @@ BlockSparseMatrix::BlockSparseMatrix(
     ElementDistribution weight_distribution,
     absl::BitGen* generator, int pad_rows_to,
     bool unordered_indices) {
-  CHECK_EQ(rows % block_dim, 0);
-  CHECK_EQ(columns % block_dim, 0);
-  CHECK_EQ(nonzeros % (block_dim * block_dim), 0);
+  SPUTNIK_CHECK_EQ(rows % block_dim, 0);
+  SPUTNIK_CHECK_EQ(columns % block_dim, 0);
+  SPUTNIK_CHECK_EQ(nonzeros % (block_dim * block_dim), 0);
 
   // Save the matrix meta-data.
   block_dim_ = block_dim;
@@ -22,7 +22,7 @@ BlockSparseMatrix::BlockSparseMatrix(
   row_swizzle_ = IDENTITY;
   pad_rows_to_ = pad_rows_to;
 
-  CHECK_LE(pad_rows_to_, columns)
+  SPUTNIK_CHECK_LE(pad_rows_to_, columns)
       << "Rows cannot be padded to more values than there are columns.";
 
   // Block domain matrix properties.
@@ -46,7 +46,7 @@ BlockSparseMatrix::BlockSparseMatrix(
   } else {
     // Verify that the number of nonzeros divides evenly into the
     // number of rows.
-    CHECK_EQ(nonzero_blocks % block_rows, 0)
+    SPUTNIK_CHECK_EQ(nonzero_blocks % block_rows, 0)
         << "The number of nonzeros must divide "
         << "evenly by the number of rows to "
         << "construct a PERFECT_UNIFORM matrix.";

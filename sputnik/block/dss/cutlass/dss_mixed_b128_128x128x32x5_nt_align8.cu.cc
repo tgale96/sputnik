@@ -72,8 +72,8 @@ cudaError_t launch_dss_mixed_b128_128x128x32x5_nt_align8(
     const BlockMatrix a, bool transpose_a,
     const BlockMatrix b, bool transpose_b,
     Matrix c, cudaStream_t stream) {
-  CHECK(a.bitmask);
-  CHECK(b.bitmask);
+  SPUTNIK_CHECK(a.bitmask);
+  SPUTNIK_CHECK(b.bitmask);
 
   // Produce the bitmasks for both matrices.
   //

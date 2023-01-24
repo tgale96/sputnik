@@ -85,7 +85,7 @@ class SparseOutputKernel {
     // TODO(tgale): Add nnz to op_c/op_d and then pass it in here.
     constexpr int kBlockSize =
       KernelFn::Epilogue::OutputTileIterator::kBlockSize;
-    CHECK_EQ(args.op_C.nnz, args.op_D.nnz);
+    SPUTNIK_CHECK_EQ(args.op_C.nnz, args.op_D.nnz);
     ::cutlass::gemm::GemmCoord grid_tiled_shape =
 	threadblock_swizzle.get_tiled_shape(args.op_C.nnz, kBlockSize);
 

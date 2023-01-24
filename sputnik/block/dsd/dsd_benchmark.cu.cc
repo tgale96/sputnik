@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include "sputnik/cuda_utils.h"
 #include "sputnik/block/dsd/dsd.h"
 #include "sputnik/block/matrix_utils.h"

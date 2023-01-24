@@ -299,10 +299,10 @@ cudaError_t CudaDepthwiseEx(int n, int c, int h, int w,
                             float* __restrict__ out, cudaStream_t stream) {
   // Launch the largest vector instructions that fit in the thread tile.
   // Sanity check the input arguments.
-  CHECK_EQ(h, w) << "Spatial dimensions must match.";
-  CHECK_EQ(kernel_size, 3) << "Currently only supports 3x3 filters";
-  CHECK_EQ(padding, 1) << "Currently only supports padding == 1";
-  CHECK(stride == 1 || stride == 2)
+  SPUTNIK_CHECK_EQ(h, w) << "Spatial dimensions must match.";
+  SPUTNIK_CHECK_EQ(kernel_size, 3) << "Currently only supports 3x3 filters";
+  SPUTNIK_CHECK_EQ(padding, 1) << "Currently only supports padding == 1";
+  SPUTNIK_CHECK(stride == 1 || stride == 2)
       << "Currently only supports stride of 1 or 2";
 
   constexpr int kKernelSize = 3;

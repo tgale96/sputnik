@@ -285,10 +285,10 @@ cudaError_t launch_dsd_b32_m32n64k32_h8_h8(
     const half* __restrict__ dense_matrix,
     half* __restrict__ output_matrix,
     cudaStream_t stream) {
-  CHECK_EQ(block_size, 32);
-  CHECK_EQ(m % block_size, 0);
-  CHECK_EQ(k % block_size, 0);
-  CHECK_EQ(n % 64, 0);
+  SPUTNIK_CHECK_EQ(block_size, 32);
+  SPUTNIK_CHECK_EQ(m % block_size, 0);
+  SPUTNIK_CHECK_EQ(k % block_size, 0);
+  SPUTNIK_CHECK_EQ(n % 64, 0);
   dim3 grid_dim(cdiv(m, block_size), cdiv(n, 64), 1);
   dim3 block_dim(32, 1, 1);
 

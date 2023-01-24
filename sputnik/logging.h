@@ -40,17 +40,17 @@ class LogMessage : public std::basic_ostringstream<char> {
 #define _SPUTNIK_LOG_FATAL						\
   sputnik::internal::LogMessage(__FILE__, __LINE__, sputnik::FATAL)
   
-#define LOG(severity) _SPUTNIK_LOG_##severity
+#define SPUTNIK_LOG(severity) _SPUTNIK_LOG_##severity
 
-#define CHECK(condition)				\
+#define SPUTNIK_CHECK(condition)			\
   if (!(condition))					\
-    LOG(FATAL) << "Check failed: " #condition " "
+    SPUTNIK_LOG(FATAL) << "Check failed: " #condition " "
 
-#define CHECK_EQ(a, b) CHECK(a == b)
-#define CHECK_NE(a, b) CHECK(a != b)
-#define CHECK_LE(a, b) CHECK(a <= b)
-#define CHECK_LT(a, b) CHECK(a < b)
-#define CHECK_GE(a, b) CHECK(a >= b)
-#define CHECK_GT(a, b) CHECK(a > b)
+#define SPUTNIK_CHECK_EQ(a, b) SPUTNIK_CHECK(a == b)
+#define SPUTNIK_CHECK_NE(a, b) SPUTNIK_CHECK(a != b)
+#define SPUTNIK_CHECK_LE(a, b) SPUTNIK_CHECK(a <= b)
+#define SPUTNIK_CHECK_LT(a, b) SPUTNIK_CHECK(a < b)
+#define SPUTNIK_CHECK_GE(a, b) SPUTNIK_CHECK(a >= b)
+#define SPUTNIK_CHECK_GT(a, b) SPUTNIK_CHECK(a > b)
 
 #endif  // SPUTNIK_LOGGING_H_

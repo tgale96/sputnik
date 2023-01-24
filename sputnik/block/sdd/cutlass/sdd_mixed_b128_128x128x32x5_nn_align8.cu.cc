@@ -72,7 +72,7 @@ cudaError_t launch_sdd_mixed_b128_128x128x32x5_nn_align8(
     const Matrix b, bool transpose_b,
     BlockMatrix c, cudaStream_t stream) {
   using Sdd = SparseOutputKernel<sdd_mixed_b128_128x128x32x5_nn_align8>;
-  CHECK(c.row_indices);
+  SPUTNIK_CHECK(c.row_indices);
 
   MatmulShape shape(a, transpose_a, b, transpose_b);
   Sdd::Arguments args({shape.m, shape.n, shape.k},

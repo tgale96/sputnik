@@ -362,8 +362,8 @@ class Matrix {
   }
 
   void Mul(const Matrix &other) {
-    CHECK_EQ(other.Rows(), Rows());
-    CHECK_EQ(other.Columns(), Columns());
+    SPUTNIK_CHECK_EQ(other.Rows(), Rows());
+    SPUTNIK_CHECK_EQ(other.Columns(), Columns());
 
     for (int i = 0; i < Rows(); ++i) {
       for (int j = 0; j < Columns(); ++j) {
@@ -374,7 +374,7 @@ class Matrix {
   }
 
   Matrix operator*(const Matrix &other) {
-    CHECK_EQ(Columns(), other.Rows());
+    SPUTNIK_CHECK_EQ(Columns(), other.Rows());
     int m = Rows(), n = other.Columns(), k = Columns();
     Matrix out(m, n);
 

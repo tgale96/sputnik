@@ -34,7 +34,7 @@ std::vector<short> RowIndices(
 
 template <typename T>
 std::vector<T> Gather(const std::vector<T> &data, const std::vector<int> &idxs) {
-  CHECK_EQ(data.size(), idxs.size());
+  SPUTNIK_CHECK_EQ(data.size(), idxs.size());
   std::vector<T> out(data.size());
   for (int i = 0; i < data.size(); ++i) {
     out[i] = data[idxs[i]];
@@ -104,9 +104,9 @@ cudaError_t Transpose(BlockMatrix a, cudaStream_t stream) {
   std::vector<int> offsets_t = Cumsum(nnz_per_column);
 
   // Make sure the outputs are allocated.
-  CHECK(a.offsets_t);
-  CHECK(a.indices_t);
-  CHECK(a.block_offsets);
+  SPUTNIK_CHECK(a.offsets_t);
+  SPUTNIK_CHECK(a.indices_t);
+  SPUTNIK_CHECK(a.block_offsets);
 
   // Copy the results to the device.
   CUDA_CALL(cudaMemcpyAsync(
