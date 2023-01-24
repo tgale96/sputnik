@@ -3,8 +3,7 @@
 #include <vector>
 
 #include "sputnik/block/transpose/transpose.h"
-
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 namespace block {

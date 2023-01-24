@@ -6,10 +6,6 @@ cuda_find_library(CUBLAS_LIBRARY cublas)
 cuda_find_library(CUSPARSE_LIBRARY cusparse)
 list(APPEND SPUTNIK_LIBS "cudart;cublas;cusparse;culibos;cublasLt")
 
-# Google Glog.
-find_package(Glog REQUIRED)
-list(APPEND SPUTNIK_LIBS ${GLOG_LIBRARIES})
-
 # CUTLASS.
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/cutlass/include)
 

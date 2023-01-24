@@ -20,7 +20,7 @@
 #include <memory>
 #include <numeric>
 
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 

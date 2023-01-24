@@ -4,7 +4,7 @@ Sputnik is a library of sparse linear algebra kernels and utilities for deep lea
 
 ## Build
 
-Sputnik uses the CMake build system. Sputnik depends on the CUDA toolkit (v10.1+) and supports SM70+. The only additional dependency for the library is [google/glog](https://github.com/google/glog). To build the library, enter the project directory and run the following commands:
+Sputnik uses the CMake build system. Sputnik depends on the CUDA toolkit (v10.1+) and supports SM70+. To build the library, enter the project directory and run the following commands:
 
 `mkdir build && cd build`
 

@@ -5,8 +5,7 @@
 
 #include "sputnik/cuda_utils.h"
 #include "sputnik/test_utils.h"
-
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 namespace block {

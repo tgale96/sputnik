@@ -22,9 +22,8 @@
 #include "sputnik/depthwise/shape_utils.h"
 #include "sputnik/depthwise/width_padding.h"
 #include "sputnik/load_store.h"
+#include "sputnik/logging.h"
 #include "sputnik/tiling_utils.h"
-
-#include "glog/logging.h"
 
 namespace sputnik {
 

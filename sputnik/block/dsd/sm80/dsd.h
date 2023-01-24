@@ -2,8 +2,7 @@
 #define THIRD_PARTY_SPUTNIK_BLOCK_DSD_SM80_DSD_H_
 
 #include "sputnik/cuda_utils.h"
-
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 namespace block {

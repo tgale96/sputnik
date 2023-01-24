@@ -18,7 +18,7 @@
 #include <cublas_v2.h>
 #include <cusparse.h>
 
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 

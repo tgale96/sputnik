@@ -2,6 +2,7 @@
 #define SPUTNIK_BLOCK_BITMASK_BIT_MATRIX_H_
 
 #include <cstdint>
+#include <vector>
 
 namespace sputnik {
 namespace block {

@@ -5,8 +5,7 @@
 #include "sputnik/block/ssd/cutlass/ssd.h"
 #include "sputnik/block/cutlass/block_pitch_linear.h"
 #include "sputnik/block/ssd/cutlass/ssd.h"
-
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 namespace block {

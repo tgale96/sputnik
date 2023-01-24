@@ -1,8 +1,7 @@
 #include "sputnik/block/dsd/sm80/dsd.h"
 #include "sputnik/cuda_utils.h"
 #include "sputnik/load_store.h"
-
-#include "glog/logging.h"
+#include "sputnik/logging.h"
 
 namespace sputnik {
 namespace block {
