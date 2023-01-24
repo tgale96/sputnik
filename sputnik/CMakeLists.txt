@@ -119,92 +119,92 @@ if (BUILD_TEST)
   file(GLOB TMP matrix_utils*)
   list(APPEND SPUTNIK_TEST_SRCS ${TMP})
   file(GLOB TMP block/matrix_utils*)
-  list(APPEND SPUTNIK_TEST_SRCS ${TMP})  
+  list(APPEND SPUTNIK_TEST_SRCS ${TMP})
   file(GLOB TMP test_utils*)
   list(APPEND SPUTNIK_TEST_SRCS ${TMP})
 
   # SpMM test build.
   list(APPEND SPUTNIK_SPMM_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_SPMM_TEST_CUDA_SRCS ${SPUTNIK_SPMM_TEST_SRCS})
   list(FILTER SPUTNIK_SPMM_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_SPMM_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_SPMM_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(spmm_test ${SPUTNIK_SPMM_TEST_SRCS})
   target_link_libraries(spmm_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # SDDMM test build.
   list(APPEND SPUTNIK_SDDMM_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_SDDMM_TEST_CUDA_SRCS ${SPUTNIK_SDDMM_TEST_SRCS})
   list(FILTER SPUTNIK_SDDMM_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_SDDMM_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_SDDMM_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(sddmm_test ${SPUTNIK_SDDMM_TEST_SRCS})
   target_link_libraries(sddmm_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # Depthwise test build.
   list(APPEND SPUTNIK_DEPTHWISE_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_DEPTHWISE_TEST_CUDA_SRCS ${SPUTNIK_DEPTHWISE_TEST_SRCS})
   list(FILTER SPUTNIK_DEPTHWISE_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
   set_source_files_properties(
     ${SPUTNIK_DEPTHWISE_TEST_CUDA_SRCS}
-    PROPERTIES LANGUAGE CUDA)  
+    PROPERTIES LANGUAGE CUDA)
   add_executable(depthwise_test ${SPUTNIK_DEPTHWISE_TEST_SRCS})
   target_link_libraries(depthwise_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # BDSD test build.
   list(APPEND SPUTNIK_BDSD_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_BDSD_TEST_CUDA_SRCS ${SPUTNIK_BDSD_TEST_SRCS})
   list(FILTER SPUTNIK_BDSD_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BDSD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BDSD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(dsd_test ${SPUTNIK_BDSD_TEST_SRCS})
   target_link_libraries(dsd_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # BDDS test build.
   list(APPEND SPUTNIK_BDDS_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_BDDS_TEST_CUDA_SRCS ${SPUTNIK_BDDS_TEST_SRCS})
   list(FILTER SPUTNIK_BDDS_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BDDS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BDDS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(dds_test ${SPUTNIK_BDDS_TEST_SRCS})
   target_link_libraries(dds_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # BSDD test build.
   list(APPEND SPUTNIK_BSDD_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_BSDD_TEST_CUDA_SRCS ${SPUTNIK_BSDD_TEST_SRCS})
   list(FILTER SPUTNIK_BSDD_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BSDD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BSDD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(sdd_test ${SPUTNIK_BSDD_TEST_SRCS})
   target_link_libraries(sdd_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # BSSD test build.
   list(APPEND SPUTNIK_BSSD_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_BSSD_TEST_CUDA_SRCS ${SPUTNIK_BSSD_TEST_SRCS})
   list(FILTER SPUTNIK_BSSD_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BSSD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BSSD_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(ssd_test ${SPUTNIK_BSSD_TEST_SRCS})
   target_link_libraries(ssd_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # BSDS test build.
   list(APPEND SPUTNIK_BSDS_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_BSDS_TEST_CUDA_SRCS ${SPUTNIK_BSDS_TEST_SRCS})
   list(FILTER SPUTNIK_BSDS_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BSDS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BSDS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(sds_test ${SPUTNIK_BSDS_TEST_SRCS})
   target_link_libraries(sds_test sputnik ${SPUTNIK_TEST_LIBS})
 
   # BDSS test build.
   list(APPEND SPUTNIK_BDSS_TEST_SRCS ${SPUTNIK_TEST_SRCS})
-  
+
   set(SPUTNIK_BDSS_TEST_CUDA_SRCS ${SPUTNIK_BDSS_TEST_SRCS})
   list(FILTER SPUTNIK_BDSS_TEST_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BDSS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BDSS_TEST_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(dss_test ${SPUTNIK_BDSS_TEST_SRCS})
-  target_link_libraries(dss_test sputnik ${SPUTNIK_TEST_LIBS})  
+  target_link_libraries(dss_test sputnik ${SPUTNIK_TEST_LIBS})
 endif()
 
 # Optionally build the benchmark suite.
@@ -214,90 +214,90 @@ if (BUILD_BENCHMARK)
   file(GLOB TMP matrix_utils*)
   list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})
   file(GLOB TMP block/matrix_utils*)
-  list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})    
+  list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})
   file(GLOB TMP test_utils*)
   list(APPEND SPUTNIK_BENCHMARK_SRCS ${TMP})
-  
+
   # SpMM benchmark build.
   list(APPEND SPUTNIK_SPMM_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_SPMM_BENCHMARK_CUDA_SRCS ${SPUTNIK_SPMM_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_SPMM_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_SPMM_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_SPMM_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(spmm_benchmark ${SPUTNIK_SPMM_BENCHMARK_SRCS})
   target_link_libraries(spmm_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # SDDMM benchmark build.
   list(APPEND SPUTNIK_SDDMM_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_SDDMM_BENCHMARK_CUDA_SRCS ${SPUTNIK_SDDMM_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_SDDMM_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_SDDMM_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_SDDMM_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(sddmm_benchmark ${SPUTNIK_SDDMM_BENCHMARK_SRCS})
   target_link_libraries(sddmm_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # Depthwise benchmark build.
   list(APPEND SPUTNIK_DEPTHWISE_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_DEPTHWISE_BENCHMARK_CUDA_SRCS ${SPUTNIK_DEPTHWISE_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_DEPTHWISE_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
   set_source_files_properties(
     ${SPUTNIK_DEPTHWISE_BENCHMARK_CUDA_SRCS}
-    PROPERTIES LANGUAGE CUDA)  
+    PROPERTIES LANGUAGE CUDA)
   add_executable(depthwise_benchmark ${SPUTNIK_DEPTHWISE_BENCHMARK_SRCS})
   target_link_libraries(depthwise_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # BDSD benchmark build.
   list(APPEND SPUTNIK_BDSD_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS ${SPUTNIK_BDSD_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BDSD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(dsd_benchmark ${SPUTNIK_BDSD_BENCHMARK_SRCS})
   target_link_libraries(dsd_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # BDDS benchmark build.
   list(APPEND SPUTNIK_BDDS_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_BDDS_BENCHMARK_CUDA_SRCS ${SPUTNIK_BDDS_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_BDDS_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BDDS_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BDDS_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(dds_benchmark ${SPUTNIK_BDDS_BENCHMARK_SRCS})
   target_link_libraries(dds_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # BSDD benchmark build.
   list(APPEND SPUTNIK_BSDD_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_BSDD_BENCHMARK_CUDA_SRCS ${SPUTNIK_BSDD_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_BSDD_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BSDD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BSDD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(sdd_benchmark ${SPUTNIK_BSDD_BENCHMARK_SRCS})
   target_link_libraries(sdd_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # BSSD benchmark build.
   list(APPEND SPUTNIK_BSSD_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_BSSD_BENCHMARK_CUDA_SRCS ${SPUTNIK_BSSD_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_BSSD_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BSSD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BSSD_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(ssd_benchmark ${SPUTNIK_BSSD_BENCHMARK_SRCS})
   target_link_libraries(ssd_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # BSDS benchmark build.
   list(APPEND SPUTNIK_BSDS_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_BSDS_BENCHMARK_CUDA_SRCS ${SPUTNIK_BSDS_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_BSDS_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BSDS_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BSDS_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(sds_benchmark ${SPUTNIK_BSDS_BENCHMARK_SRCS})
   target_link_libraries(sds_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 
   # BDSS benchmark build.
   list(APPEND SPUTNIK_BDSS_BENCHMARK_SRCS ${SPUTNIK_BENCHMARK_SRCS})
-  
+
   set(SPUTNIK_BDSS_BENCHMARK_CUDA_SRCS ${SPUTNIK_BDSS_BENCHMARK_SRCS})
   list(FILTER SPUTNIK_BDSS_BENCHMARK_CUDA_SRCS INCLUDE REGEX "\.cu\.cc")
-  set_source_files_properties(${SPUTNIK_BDSS_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)  
+  set_source_files_properties(${SPUTNIK_BDSS_BENCHMARK_CUDA_SRCS} PROPERTIES LANGUAGE CUDA)
   add_executable(dss_benchmark ${SPUTNIK_BDSS_BENCHMARK_SRCS})
-  target_link_libraries(dss_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})  
+  target_link_libraries(dss_benchmark sputnik ${SPUTNIK_BENCHMARK_LIBS})
 endif()
