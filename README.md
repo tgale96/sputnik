@@ -1,6 +1,6 @@
-# Sputnik
+# NOTE
 
-Sputnik is a library of sparse linear algebra kernels and utilities for deep learning.
+This repository is a hard-fork of [Sputnik](https://github.com/google-research/sputnik) that has been extended with block-sparse matrix multiplication kernels. It is in the process of being simplified to remove the majority of Sputnik code. The following is copied from Sputnik, with an updated citation for the new block-sparse kernels.
 
 ## Build
 
@@ -31,15 +31,14 @@ To launch the container with the sputnik source mounted under `/mount` (assuming
 If you make use of this library, please cite:
 
 ```
-@inproceedings{sgk_sc2020,
-  author    = {Trevor Gale and Matei Zaharia and Cliff Young and Erich Elsen},
-  title     = {Sparse {GPU} Kernels for Deep Learning},
-  booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis, {SC} 2020},
-  year      = {2020},
+@article{megablocks-arxiv,
+  author    = {Trevor Gale and
+               Deepak Narayanan and
+               Cliff Young and
+               Matei Zaharia},
+  title     = {MegaBlocks: Efficient Sparse Training with Mixture-of-Experts},
+  journal   = {CoRR},
+  volume    = {abs/2211.15841},
+  year      = {2022},
 }
 ```
-
-The sparse models and dataset of sparse matrices from deep neural networks from the above paper can be found [here](https://github.com/google-research/google-research/tree/master/sgk).
-
-## Disclaimer
-This is not an official Google product.
