@@ -13,7 +13,7 @@ template <
     int AdvanceRank_,
     typename ThreadMap_,
     typename AccessType_>
-class BlockTileUnionIterator : BlockTileAccessIterator<
+class BlockTileUnionIterator : public BlockTileAccessIterator<
     Shape_, Element_, AdvanceRank_, ThreadMap_, AccessType_> {
  public:
 
