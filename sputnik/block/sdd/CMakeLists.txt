@@ -10,6 +10,8 @@ file(GLOB TMP *.h)
 list(APPEND DIR_SRCS ${TMP})
 file(GLOB TMP *.cc)
 list(APPEND DIR_SRCS ${TMP})
+file(GLOB TMP *.cu)
+list(APPEND DIR_SRCS ${TMP})
 
 ##
 ### Filter files that we don't want in the main library.
@@ -18,11 +20,11 @@ list(APPEND DIR_SRCS ${TMP})
 set(FILTER_SRCS)
 
 # Don't need test files.
-file(GLOB TMP *_test.cu.cc)
+file(GLOB TMP *_test.cu)
 list(APPEND FILTER_SRCS ${TMP})
 
 # Don't need benchmark files.
-file(GLOB TMP *_benchmark.cu.cc)
+file(GLOB TMP *_benchmark.cu)
 list(APPEND FILTER_SRCS ${TMP})
 
 foreach(FILE ${FILTER_SRCS})
@@ -34,12 +36,12 @@ set(SPUTNIK_SRCS ${SPUTNIK_SRCS} ${DIR_SRCS} PARENT_SCOPE)
 
 # Conditionally gather test sources.
 if (BUILD_TEST)
-  file(GLOB TMP *_test.cu.cc)
+  file(GLOB TMP *_test.cu)
   set(SPUTNIK_BSDD_TEST_SRCS ${SPUTNIK_BSDD_TEST_SRCS} ${TMP} PARENT_SCOPE)
 endif()
 
 # Conditionally gather the benchmark sources.
 if (BUILD_BENCHMARK)
-  file(GLOB TMP *_benchmark.cu.cc)
+  file(GLOB TMP *_benchmark.cu)
   set(SPUTNIK_BSDD_BENCHMARK_SRCS ${SPUTNIK_BSDD_BENCHMARK_SRCS} ${TMP} PARENT_SCOPE)
 endif()

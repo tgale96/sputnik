@@ -8,6 +8,8 @@ file(GLOB TMP *.h)
 list(APPEND DIR_SRCS ${TMP})
 file(GLOB TMP *.cc)
 list(APPEND DIR_SRCS ${TMP})
+file(GLOB TMP *.cu)
+list(APPEND DIR_SRCS ${TMP})
 
 # NOTE: There should never be test or benchmark source
 # files in SM specific directories.

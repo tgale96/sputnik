@@ -8,6 +8,8 @@ file(GLOB TMP *.h)
 list(APPEND DIR_SRCS ${TMP})
 file(GLOB TMP *.cc)
 list(APPEND DIR_SRCS ${TMP})
+file(GLOB TMP *.cu)
+list(APPEND DIR_SRCS ${TMP})
 
 # Add the sources to the build.
 set(SPUTNIK_SRCS ${SPUTNIK_SRCS} ${DIR_SRCS} PARENT_SCOPE)
